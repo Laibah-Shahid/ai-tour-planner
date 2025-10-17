@@ -1,0 +1,81 @@
+version: "3.9"
+
+services:
+  # ======================
+  # Frontend (Next.js)
+  # ======================
+  frontend:
+    build: ./frontend
+    container_name: ai-tour-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  # ======================
+  # Backend (FastAPI)
+  # ======================
+  backend:
+    build: ./backend
+    container_name: ai-tour-backend
+    ports:
+      - "8000:8000"
+    environment:
+    # to be updated
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tourplanner
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - AMADEUS_API_KEY=${AMADEUS_API_KEY}
+      - AMADEUS_API_SECRET=${AMADEUS_API_SECRET}
+      - GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY}
+      - TRIPADVISOR_API_KEY=${TRIPADVISOR_API_KEY}
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/app
+
+  # ======================
+  # Database (PostgreSQL)
+  # ======================
+  db:
+    image: postgres:15
+    container_name: ai-tour-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tourplanner
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # ======================
+  # n8n (Automation Workflows)
+  # ======================
+  n8n:
+    image: n8nio/n8n
+    container_name: ai-tour-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=Asia/Karachi
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=db
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=tourplanner
+      - DB_POSTGRESDB_USER=postgres
+      - DB_POSTGRESDB_PASSWORD=postgres
+    depends_on:
+      - db
+    volumes:
+      - ./n8n:/home/node/.n8n
+
+volumes:
+  postgres_data:
