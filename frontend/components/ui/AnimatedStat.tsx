@@ -1,8 +1,26 @@
 "use client";
-import { motion, useMotionValue, useTransform, animate, useInView } from "framer-motion";
+import {
+  motion,
+  useMotionValue,
+  useTransform,
+  animate,
+  useInView,
+} from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 
-function AnimatedStat({ value, suffix, label, duration = 2 }: { value: number; suffix?: string; label?: string; duration?: number }) {
+interface AnimatedStatProps {
+  value: number;
+  suffix?: string;
+  label?: string;
+  duration?: number;
+}
+
+export default function AnimatedStat({
+  value,
+  suffix,
+  label,
+  duration = 2,
+}: AnimatedStatProps) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
   const count = useMotionValue(0);
@@ -10,10 +28,8 @@ function AnimatedStat({ value, suffix, label, duration = 2 }: { value: number; s
     value >= 5 ? Math.floor(latest).toLocaleString() : latest.toFixed(1)
   );
 
-  // 👇 local state to store the readable string
   const [displayValue, setDisplayValue] = useState("0");
 
-  // 👇 Subscribe to motion value changes
   useEffect(() => {
     const unsubscribe = rounded.on("change", (latest) => {
       setDisplayValue(latest);
@@ -21,7 +37,6 @@ function AnimatedStat({ value, suffix, label, duration = 2 }: { value: number; s
     return () => unsubscribe();
   }, [rounded]);
 
-  // 👇 Start counting animation when in view
   useEffect(() => {
     if (isInView) {
       const controls = animate(count, value, { duration, ease: "easeOut" });
@@ -38,5 +53,3 @@ function AnimatedStat({ value, suffix, label, duration = 2 }: { value: number; s
     </div>
   );
 }
-
-export default AnimatedStat;

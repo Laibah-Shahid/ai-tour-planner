@@ -1,18 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Mountain } from "lucide-react";
-
-const navItems = [
-  { id: "home", label: "Home" },
-  { id: "features", label: "Features" },
-  { id: "destinations", label: "Destinations" },
-  { id: "testimonials", label: "Reviews" },
-  // { id: "pricing", label: "Pricing" },
-];
+import { Menu, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import Logo from "@/components/ui/Logo";
+import { NAV_ITEMS } from "@/config/site";
 
 export default function Header() {
   const [activeSection, setActiveSection] = useState("home");
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -23,69 +20,169 @@ export default function Header() {
           }
         });
       },
-      {
-        root: null,
-        rootMargin: "0px",
-        threshold: 0.6, // 60% visible triggers active
-      }
+      { root: null, rootMargin: "0px", threshold: 0.6 }
     );
 
-    navItems.forEach((item) => {
-      const section = document.getElementById(item.id);
-      if (section) observer.observe(section);
+    NAV_ITEMS.forEach((item) => {
+      if (item.href.startsWith("/#")) {
+        const section = document.getElementById(item.id);
+        if (section) observer.observe(section);
+      }
     });
 
     return () => {
-      navItems.forEach((item) => {
-        const section = document.getElementById(item.id);
-        if (section) observer.unobserve(section);
+      NAV_ITEMS.forEach((item) => {
+        if (item.href.startsWith("/#")) {
+          const section = document.getElementById(item.id);
+          if (section) observer.unobserve(section);
+        }
       });
     };
   }, []);
 
-  return (
-    <header className="bg-white/95 backdrop-blur-sm fixed w-full z-50 border-b border-gray-100">
-      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-        {/* Logo */}
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-700 rounded-xl flex items-center justify-center">
-            <Mountain className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent">
-              PakTour AI
-            </span>
-            <div className="text-xs text-gray-500">Smart Travel Companion</div>
-          </div>
-        </div>
+  const closeMobile = () => setMobileOpen(false);
 
-        {/* Navigation */}
-        <nav className="hidden lg:flex items-center space-x-8">
-          {navItems.map((item) => (
-            <a
+  return (
+    <header className="fixed w-full z-50 border-gray-100">
+      <div className="max-w-7xl mx-auto px-2 py-4 flex items-center justify-between">
+        <Logo variant="header" />
+
+        {/* Desktop Navigation */}
+        <nav className="hidden lg:flex items-center space-x-1">
+          {NAV_ITEMS.map((item) => (
+            <motion.a
               key={item.id}
-              href={`#${item.id}`}
-              className={`font-medium transition-colors ${
-                activeSection === item.id
-                  ? "text-green-600"
-                  : "text-gray-600 hover:text-green-600"
-              }`}
+              href={item.href}
+              onClick={() => {
+                if (item.href.startsWith("/#")) {
+                  setActiveSection(item.id);
+                }
+              }}
+              className="relative px-4 py-2 rounded-full text-sm font-medium transition-colors"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              {item.label}
-            </a>
+              <span
+                className={`relative z-10 ${
+                  activeSection === item.id
+                    ? "text-white"
+                    : "text-white/80 hover:text-white"
+                }`}
+              >
+                {item.label}
+              </span>
+              {activeSection === item.id && (
+                <motion.div
+                  layoutId="activeSection"
+                  className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full -z-0"
+                  initial={false}
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+            </motion.a>
           ))}
         </nav>
 
-        {/* Buttons */}
-        <div className="flex items-center space-x-4">
-          <button className="text-gray-600 hover:text-green-600 transition-colors font-medium">
+        {/* Desktop Buttons */}
+        <div className="hidden lg:flex items-center space-x-4">
+          <Link
+            href="/signin"
+            className="text-white hover:text-emerald-400 transition-colors font-medium"
+          >
             Sign In
-          </button>
-          <button className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-2.5 rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-lg shadow-green-500/25">
+          </Link>
+          <Link
+            href="/build-trip"
+            className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-2.5 rounded-xl font-medium hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 shadow-lg shadow-emerald-500/25"
+          >
             Start Planning
-          </button>
+          </Link>
         </div>
+
+        {/* Mobile Hamburger */}
+        <button
+          className="lg:hidden text-white p-2"
+          onClick={() => setMobileOpen(!mobileOpen)}
+          aria-label={mobileOpen ? "Close menu" : "Open menu"}
+        >
+          {mobileOpen ? (
+            <X className="w-6 h-6" />
+          ) : (
+            <Menu className="w-6 h-6" />
+          )}
+        </button>
       </div>
+
+      {/* Mobile Slide-in Panel */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+              onClick={closeMobile}
+            />
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed top-0 right-0 h-full w-72 bg-emerald-950 z-50 p-6 flex flex-col lg:hidden shadow-2xl"
+            >
+              <div className="flex justify-end mb-8">
+                <button
+                  onClick={closeMobile}
+                  className="text-white p-2"
+                  aria-label="Close menu"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <nav className="flex flex-col space-y-2">
+                {NAV_ITEMS.map((item) => (
+                  <a
+                    key={item.id}
+                    href={item.href}
+                    onClick={() => {
+                      if (item.href.startsWith("/#")) {
+                        setActiveSection(item.id);
+                      }
+                      closeMobile();
+                    }}
+                    className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                      activeSection === item.id
+                        ? "bg-emerald-600 text-white"
+                        : "text-white/80 hover:bg-emerald-800 hover:text-white"
+                    }`}
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </nav>
+
+              <div className="mt-auto flex flex-col space-y-3 pt-8 border-t border-emerald-800">
+                <Link
+                  href="/signin"
+                  onClick={closeMobile}
+                  className="text-center text-white hover:text-emerald-300 transition-colors font-medium py-2"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/build-trip"
+                  onClick={closeMobile}
+                  className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-medium text-center hover:from-emerald-600 hover:to-emerald-700 transition-all"
+                >
+                  Start Planning
+                </Link>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
