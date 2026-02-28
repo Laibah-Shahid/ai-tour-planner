@@ -10,6 +10,13 @@ import { NAV_ITEMS } from "@/config/site";
 export default function Header() {
   const [activeSection, setActiveSection] = useState("home");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -43,8 +50,14 @@ export default function Header() {
   const closeMobile = () => setMobileOpen(false);
 
   return (
-    <header className="fixed w-full z-50 border-gray-100">
-      <div className="max-w-7xl mx-auto px-2 py-4 flex items-center justify-between">
+    <header
+      className={`fixed w-full z-50 transition-all duration-300 ${
+        scrolled
+          ? "bg-emerald-950/95 backdrop-blur-md shadow-lg shadow-black/20"
+          : "bg-emerald-950/70 backdrop-blur-sm"
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         <Logo variant="header" />
 
         {/* Desktop Navigation */}
