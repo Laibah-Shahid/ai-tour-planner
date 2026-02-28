@@ -45,3 +45,56 @@ export interface Feature {
   title: string;
   description: string;
 }
+
+// ── Itinerary ────────────────────────────────────────────────────────────────
+
+export interface Hotel {
+  name: string;
+  image: string;
+  rating: number;
+  address: string;
+  pricePerNight: number;
+}
+
+export interface ItineraryPlace {
+  name: string;
+  image: string;
+  description: string;
+}
+
+export interface Souvenir {
+  name: string;
+  description: string;
+}
+
+export interface ItineraryDay {
+  id: number;
+  title: string;
+  tagline: string;
+  image: string;
+  durationHours: number;
+  distanceKm: number;
+  hotels: Hotel[];
+  places: ItineraryPlace[];
+  souvenirs: Souvenir[];
+}
+
+export interface CostItem {
+  label: string;
+  amount: number;
+}
+
+export interface TravelTip {
+  id: number;
+  text: string;
+}
+
+export interface ItineraryData {
+  destination: string;
+  totalDays: number;
+  bestSeason: string;
+  totalCost: number;
+  days: ItineraryDay[];
+  costs: CostItem[];
+  tips: TravelTip[];
+}

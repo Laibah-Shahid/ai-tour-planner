@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, PenLine, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SIMULATED_DELAY } from "@/config/site";
 
 export default function BuildTripPage() {
+  const router = useRouter();
   const [inputMethod, setInputMethod] = useState<"form" | "text">("form");
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +30,7 @@ export default function BuildTripPage() {
   const handleGenerate = async () => {
     setLoading(true);
     await new Promise((resolve) => setTimeout(resolve, SIMULATED_DELAY));
-    setLoading(false);
+    router.push("/itinerary");
   };
 
   return (
