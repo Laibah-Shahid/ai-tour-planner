@@ -153,7 +153,21 @@ export default function DayCard({ day, defaultOpen = false }: DayCardProps) {
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <div className="border-t border-gray-100 px-5 pb-6 pt-5 space-y-7">
+            <div className="border-t border-gray-100 px-5 pb-6 pt-5 space-y-7">        
+
+              {/* Places to Visit */}
+              <div>
+                <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+                  <Compass className="w-4 h-4 text-emerald-500" />
+                  Places to Visit
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {day.places.map((place, i) => (
+                    <PlaceCard key={i} place={place} />
+                  ))}
+                </div>
+              </div>
+
               {/* Suggested Stays */}
               {day.hotels.length > 0 && (
                 <div>
@@ -168,19 +182,6 @@ export default function DayCard({ day, defaultOpen = false }: DayCardProps) {
                   </div>
                 </div>
               )}
-
-              {/* Places to Visit */}
-              <div>
-                <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
-                  <Compass className="w-4 h-4 text-emerald-500" />
-                  Places to Visit
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {day.places.map((place, i) => (
-                    <PlaceCard key={i} place={place} />
-                  ))}
-                </div>
-              </div>
 
               {/* Souvenir Suggestions */}
               <div>
