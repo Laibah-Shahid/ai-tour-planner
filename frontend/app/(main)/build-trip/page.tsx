@@ -1,37 +1,69 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, PenLine, FileText } from "lucide-react";
+import { Loader2, PenLine, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { SIMULATED_DELAY } from "@/config/site";
+import TripChatbot from "@/components/build-trip/TripChatbot";
+import { SIMULATED_DELAY, FORM_REQUIRED_FIELDS } from "@/config/site";
+import type { GatheredTripDetails } from "@/types";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const INITIAL_FORM = {
+  people: "",
+  source: "",
+  destination: "",
+  budget: "",
+  spots: "",
+  notes: "",
+};
+
+// ── BuildTripPage ─────────────────────────────────────────────────────────────
 
 export default function BuildTripPage() {
   const router = useRouter();
-  const [inputMethod, setInputMethod] = useState<"form" | "text">("form");
+  const [inputMethod, setInputMethod] = useState<"form" | "chat">("form");
   const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState(INITIAL_FORM);
+  const [chatDetails, setChatDetails] = useState<GatheredTripDetails | null>(
+    null
+  );
 
-  const [formData, setFormData] = useState({
-    people: "",
-    source: "",
-    destination: "",
-    budget: "",
-    spots: "",
-    notes: "",
-  });
+  // Single handler for all form inputs — relies on `id` matching the field key
+  const handleFormChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const { id, value } = e.target;
+      setFormData((prev) => ({ ...prev, [id]: value }));
+    },
+    []
+  );
 
-  const [textInput, setTextInput] = useState("");
+  const handleInputMethodChange = useCallback((value: string) => {
+    setInputMethod(value as "form" | "chat");
+  }, []);
 
-  const handleGenerate = async () => {
+  // Button is enabled only when all required fields are satisfied
+  const isComplete = useMemo(() => {
+    if (inputMethod === "form") {
+      return (FORM_REQUIRED_FIELDS as readonly string[]).every(
+        (f) => !!formData[f as keyof typeof INITIAL_FORM].trim()
+      );
+    }
+    return chatDetails !== null;
+  }, [inputMethod, formData, chatDetails]);
+
+  const handleGenerate = useCallback(async () => {
+    if (!isComplete || loading) return;
     setLoading(true);
     await new Promise((resolve) => setTimeout(resolve, SIMULATED_DELAY));
     router.push("/itinerary");
-  };
+  }, [isComplete, loading, router]);
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -63,9 +95,7 @@ export default function BuildTripPage() {
               <RadioGroup
                 defaultValue="form"
                 value={inputMethod}
-                onValueChange={(value) =>
-                  setInputMethod(value as "form" | "text")
-                }
+                onValueChange={handleInputMethodChange}
                 className="grid grid-cols-2 gap-4 w-full max-w-md"
               >
                 <div>
@@ -78,158 +108,130 @@ export default function BuildTripPage() {
                     htmlFor="method-form"
                     className="flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-emerald-500 peer-data-[state=checked]:bg-emerald-50 [&:has([data-state=checked])]:border-emerald-500 cursor-pointer transition-all"
                   >
-                    <PenLine className="mb-2 h-6 w-6 text-gray-600 peer-data-[state=checked]:text-emerald-600" />
+                    <PenLine className="mb-2 h-6 w-6 text-gray-600" />
                     <span className="font-semibold">Use Form</span>
                   </Label>
                 </div>
                 <div>
                   <RadioGroupItem
-                    value="text"
-                    id="method-text"
+                    value="chat"
+                    id="method-chat"
                     className="peer sr-only"
                   />
                   <Label
-                    htmlFor="method-text"
+                    htmlFor="method-chat"
                     className="flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-emerald-500 peer-data-[state=checked]:bg-emerald-50 [&:has([data-state=checked])]:border-emerald-500 cursor-pointer transition-all"
                   >
-                    <FileText className="mb-2 h-6 w-6 text-gray-600 peer-data-[state=checked]:text-emerald-600" />
-                    <span className="font-semibold">Write Details</span>
+                    <MessageSquare className="mb-2 h-6 w-6 text-gray-600" />
+                    <span className="font-semibold">Chat with AI</span>
                   </Label>
                 </div>
               </RadioGroup>
             </div>
           </div>
 
-          <div className="grid md:grid-cols-1 gap-8 relative">
-            <AnimatePresence mode="wait">
-              {inputMethod === "form" ? (
-                <motion.div
-                  key="form-section"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.3 }}
-                  className="bg-white p-8 rounded-2xl border shadow-sm"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="people">Number of People</Label>
-                      <Input
-                        id="people"
-                        type="number"
-                        placeholder="e.g., 2"
-                        className="focus-visible:ring-emerald-500"
-                        value={formData.people}
-                        onChange={(e) =>
-                          setFormData({ ...formData, people: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="budget">Budget (PKR)</Label>
-                      <Input
-                        id="budget"
-                        type="number"
-                        placeholder="e.g., 50000"
-                        className="focus-visible:ring-emerald-500"
-                        value={formData.budget}
-                        onChange={(e) =>
-                          setFormData({ ...formData, budget: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="source">Starting Point</Label>
-                      <Input
-                        id="source"
-                        placeholder="e.g., Lahore"
-                        className="focus-visible:ring-emerald-500"
-                        value={formData.source}
-                        onChange={(e) =>
-                          setFormData({ ...formData, source: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="destination">Destination</Label>
-                      <Input
-                        id="destination"
-                        placeholder="e.g., Skardu"
-                        className="focus-visible:ring-emerald-500"
-                        value={formData.destination}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            destination: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="md:col-span-2 space-y-2">
-                      <Label htmlFor="spots">
-                        Favorite Spots (Comma separated)
-                      </Label>
-                      <Input
-                        id="spots"
-                        placeholder="e.g., Shangrila Resort, Deosai Plains"
-                        className="focus-visible:ring-emerald-500"
-                        value={formData.spots}
-                        onChange={(e) =>
-                          setFormData({ ...formData, spots: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="md:col-span-2 space-y-2">
-                      <Label htmlFor="notes">Additional Notes</Label>
-                      <Textarea
-                        id="notes"
-                        placeholder="Any specific preferences or requirements?"
-                        className="min-h-[100px] focus-visible:ring-emerald-500"
-                        value={formData.notes}
-                        onChange={(e) =>
-                          setFormData({ ...formData, notes: e.target.value })
-                        }
-                      />
-                    </div>
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="text-section"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
-                  className="bg-white p-8 rounded-2xl border shadow-sm"
-                >
-                  <div className="space-y-4">
-                    <Label htmlFor="trip-details" className="text-lg">
-                      Describe your trip details
-                    </Label>
-                    <Textarea
-                      id="trip-details"
-                      placeholder="Share your destination, budget, spots you want to visit, and more. For example: I want to visit Hunza with 3 friends for 5 days. Our budget is 100k PKR. We want to see Attabad Lake and Altit Fort."
-                      className="min-h-[300px] text-lg p-6 focus-visible:ring-emerald-500 resize-y shadow-inner"
-                      value={textInput}
-                      onChange={(e) => setTextInput(e.target.value)}
+          {/* Input sections */}
+          <AnimatePresence mode="wait">
+            {inputMethod === "form" ? (
+              <motion.div
+                key="form-section"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+                className="bg-white p-8 rounded-2xl border shadow-sm"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="people">Number of People</Label>
+                    <Input
+                      id="people"
+                      type="number"
+                      placeholder="e.g., 2"
+                      className="focus-visible:ring-emerald-500"
+                      value={formData.people}
+                      onChange={handleFormChange}
                     />
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="budget">Budget (PKR)</Label>
+                    <Input
+                      id="budget"
+                      type="number"
+                      placeholder="e.g., 50000"
+                      className="focus-visible:ring-emerald-500"
+                      value={formData.budget}
+                      onChange={handleFormChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="source">Starting Point</Label>
+                    <Input
+                      id="source"
+                      placeholder="e.g., Lahore"
+                      className="focus-visible:ring-emerald-500"
+                      value={formData.source}
+                      onChange={handleFormChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="destination">Destination</Label>
+                    <Input
+                      id="destination"
+                      placeholder="e.g., Skardu"
+                      className="focus-visible:ring-emerald-500"
+                      value={formData.destination}
+                      onChange={handleFormChange}
+                    />
+                  </div>
+                  <div className="md:col-span-2 space-y-2">
+                    <Label htmlFor="spots">
+                      Favorite Spots (Comma separated)
+                    </Label>
+                    <Input
+                      id="spots"
+                      placeholder="e.g., Shangrila Resort, Deosai Plains"
+                      className="focus-visible:ring-emerald-500"
+                      value={formData.spots}
+                      onChange={handleFormChange}
+                    />
+                  </div>
+                  <div className="md:col-span-2 space-y-2">
+                    <Label htmlFor="notes">Additional Notes</Label>
+                    <Textarea
+                      id="notes"
+                      placeholder="Any specific preferences or requirements?"
+                      className="min-h-[100px] focus-visible:ring-emerald-500"
+                      value={formData.notes}
+                      onChange={handleFormChange}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="chat-section"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <TripChatbot onDetailsGathered={setChatDetails} />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Action Button */}
-          <div className="mt-12 text-center">
+          <div className="mt-12 text-center space-y-3">
             <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={isComplete ? { scale: 1.05 } : {}}
+              whileTap={isComplete ? { scale: 0.95 } : {}}
             >
               <Button
                 size="lg"
                 onClick={handleGenerate}
-                disabled={loading}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-6 text-lg rounded-full shadow-lg hover:shadow-xl transition-all min-w-[250px]"
+                disabled={!isComplete || loading}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-6 text-lg rounded-full shadow-lg hover:shadow-xl transition-all min-w-[250px] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
               >
                 {loading ? (
                   <>
@@ -241,6 +243,13 @@ export default function BuildTripPage() {
                 )}
               </Button>
             </motion.div>
+            {!isComplete && !loading && (
+              <p className="text-sm text-gray-400">
+                {inputMethod === "form"
+                  ? "Fill in all required fields to continue."
+                  : "Complete the chat with the AI assistant to continue."}
+              </p>
+            )}
           </div>
         </motion.div>
       </main>

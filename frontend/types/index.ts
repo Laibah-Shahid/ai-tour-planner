@@ -89,6 +89,26 @@ export interface TravelTip {
   text: string;
 }
 
+// ── Chat / Build-Trip ─────────────────────────────────────────────────────────
+
+export type ChatRole = "user" | "bot";
+
+export interface ChatMessage {
+  id: string;
+  role: ChatRole;
+  content: string;
+  timestamp: number;
+}
+
+export interface GatheredTripDetails {
+  destination: string;
+  source: string;
+  people: string;
+  budget: string;
+  spots: string;
+  notes: string;
+}
+
 export interface ItineraryData {
   destination: string;
   totalDays: number;
