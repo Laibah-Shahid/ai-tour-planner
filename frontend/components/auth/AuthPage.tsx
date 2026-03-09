@@ -30,11 +30,40 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
     router.replace(newMode === "signin" ? "/signin" : "/signup");
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+
+  // Handles both sign in and sign up
+  const handleSubmit = async (
+    e: React.FormEvent,
+    mode: 'signin' | 'signup',
+    formValues: { name?: string; email: string; password: string }
+  ) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, SIMULATED_DELAY));
+    let error = null;
+    if (mode === 'signup') {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: formValues.email,
+        password: formValues.password,
+        options: {
+          data: { full_name: formValues.name }
+        }
+      });
+      error = signUpError;
+    } else {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: formValues.email,
+        password: formValues.password
+      });
+      error = signInError;
+    }
     setLoading(false);
+    if (!error) {
+      // Redirect or show success
+      router.push('/');
+    } else {
+      // Optionally show error to user
+      alert(error.message);
+    }
   };
 
   const handleOAuthSignIn = async (provider: 'google' | 'github') => {
@@ -126,9 +155,9 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
               transition={{ duration: 0.2 }}
             >
               {mode === "signin" ? (
-                <SignInForm loading={loading} onSubmit={handleSubmit} onOAuthSignIn={handleOAuthSignIn} />
+                <SignInForm loading={loading} onSubmit={(e, values) => handleSubmit(e, 'signin', values)} onOAuthSignIn={handleOAuthSignIn} />
               ) : (
-                <SignUpForm loading={loading} onSubmit={handleSubmit} onOAuthSignIn={handleOAuthSignIn} />
+                <SignUpForm loading={loading} onSubmit={(e, values) => handleSubmit(e, 'signup', values)} onOAuthSignIn={handleOAuthSignIn} />
               )}
             </motion.div>
           </AnimatePresence>
@@ -154,29 +183,31 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
   );
 }
 
-function SignInForm({
-  loading,
-  onSubmit,
-  onOAuthSignIn,
-}: {
+function SignInForm({ loading, onSubmit, onOAuthSignIn }: {
   loading: boolean;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent, values: { email: string; password: string }) => void;
   onOAuthSignIn: (provider: 'google' | 'github') => void;
 }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={e => onSubmit(e, { email, password })} className="space-y-4">
       <div className="space-y-4">
         <FloatingInput
           id="signin-email"
           label="Email Address"
           type="email"
           icon={<Mail className="h-5 w-5" />}
+          value={email}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
         />
         <FloatingInput
           id="signin-password"
           label="Password"
           icon={<Lock className="h-5 w-5" />}
           showPasswordToggle
+          value={password}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
         />
       </div>
 
@@ -230,28 +261,32 @@ function SignInForm({
   );
 }
 
-function SignUpForm({
-  loading,
-  onSubmit,
-  onOAuthSignIn,
-}: {
+function SignUpForm({ loading, onSubmit, onOAuthSignIn }: {
   loading: boolean;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent, values: { name: string; email: string; password: string; confirm: string }) => void;
   onOAuthSignIn: (provider: 'google' | 'github') => void;
 }) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={e => onSubmit(e, { name, email, password, confirm })} className="space-y-4">
       <div className="space-y-3">
         <FloatingInput
           id="signup-name"
           label="Full Name"
           icon={<User className="h-5 w-5" />}
+          value={name}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
         />
         <FloatingInput
           id="signup-email"
           label="Email Address"
           type="email"
           icon={<Mail className="h-5 w-5" />}
+          value={email}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
         />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <FloatingInput
@@ -259,12 +294,16 @@ function SignUpForm({
             label="Password"
             icon={<Lock className="h-5 w-5" />}
             showPasswordToggle
+            value={password}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
           />
           <FloatingInput
             id="signup-confirm"
             label="Confirm"
             icon={<CheckCircle2 className="h-5 w-5" />}
             showPasswordToggle
+            value={confirm}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirm(e.target.value)}
           />
         </div>
       </div>
@@ -328,7 +367,6 @@ function SignUpForm({
           <span>Google</span>
         </button>
       </div>
-        
     </form>
   );
 }
