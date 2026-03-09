@@ -190,74 +190,127 @@ function SignInForm({ loading, onSubmit, onOAuthSignIn }: {
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showForgot, setShowForgot] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMsg, setResetMsg] = useState<string|null>(null);
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setResetLoading(true);
+    setResetMsg(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail);
+    if (error) {
+      setResetMsg(error.message);
+    } else {
+      setResetMsg('Password reset email sent! Check your inbox.');
+    }
+    setResetLoading(false);
+  }
+
   return (
-    <form onSubmit={e => onSubmit(e, { email, password })} className="space-y-4">
-      <div className="space-y-4">
-        <FloatingInput
-          id="signin-email"
-          label="Email Address"
-          type="email"
-          icon={<Mail className="h-5 w-5" />}
-          value={email}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-        />
-        <FloatingInput
-          id="signin-password"
-          label="Password"
-          icon={<Lock className="h-5 w-5" />}
-          showPasswordToggle
-          value={password}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-        />
-      </div>
+    <>
+      {!showForgot ? (
+        <form onSubmit={e => onSubmit(e, { email, password })} className="space-y-4">
+          <div className="space-y-4">
+            <FloatingInput
+              id="signin-email"
+              label="Email Address"
+              type="email"
+              icon={<Mail className="h-5 w-5" />}
+              value={email}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+            />
+            <FloatingInput
+              id="signin-password"
+              label="Password"
+              icon={<Lock className="h-5 w-5" />}
+              showPasswordToggle
+              value={password}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+            />
+          </div>
 
-      <div className="flex items-center justify-end">
-        <Link
-          href="#"
-          className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
-        >
-          Forgot Password?
-        </Link>
-      </div>
+          <div className="flex items-center justify-end">
+            <button
+              type="button"
+              className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+              onClick={() => setShowForgot(true)}
+            >
+              Forgot Password?
+            </button>
+          </div>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all hover:shadow-emerald-600/30 focus:ring-4 focus:ring-emerald-600/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
-      >
-        {loading ? (
-          <Loader2 className="w-5 h-5 animate-spin" />
-        ) : (
-          <>
-            <span>Sign In</span>
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </>
-        )}
-      </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all hover:shadow-emerald-600/30 focus:ring-4 focus:ring-emerald-600/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
+          >
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <span>Sign In</span>
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </>
+            )}
+          </button>
 
-      {/* Visual Divider */}
-      <div className="relative mt-6 mb-4">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-slate-200" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white px-2 text-slate-500 font-medium">Or continue with</span>
-        </div>
-      </div>
+          {/* Visual Divider */}
+          <div className="relative mt-6 mb-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-slate-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-slate-500 font-medium">Or continue with</span>
+            </div>
+          </div>
 
-      {/* OAuth Buttons Row */}
-      <div className="flex flex-row gap-3">
-        <button
-          type="button"
-          onClick={() => onOAuthSignIn('google')}
-          className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl py-2.5 px-4 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium text-slate-700"
-          disabled={loading}
-        >
-          <img src="/images/google.svg" alt="Google" className="w-5 h-5" />
-          <span>Google</span>
-        </button>
-      </div>
-    </form>
+          {/* OAuth Buttons Row */}
+          <div className="flex flex-row gap-3">
+            <button
+              type="button"
+              onClick={() => onOAuthSignIn('google')}
+              className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl py-2.5 px-4 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium text-slate-700"
+              disabled={loading}
+            >
+              <img src="/images/google.svg" alt="Google" className="w-5 h-5" />
+              <span>Google</span>
+            </button>
+          </div>
+        </form>
+      ) : (
+        <form onSubmit={handleForgotPassword} className="space-y-4 bg-slate-50 p-6 rounded-xl border border-slate-200">
+          <div className="text-center font-semibold text-emerald-700 text-lg mb-2">Reset Password</div>
+          <FloatingInput
+            id="reset-email"
+            label="Email Address"
+            type="email"
+            icon={<Mail className="h-5 w-5" />}
+            value={resetEmail}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setResetEmail(e.target.value)}
+            required
+          />
+          <button
+            type="submit"
+            disabled={resetLoading}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all focus:ring-4 focus:ring-emerald-600/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {resetLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Send Reset Email</span>}
+          </button>
+          {resetMsg && (
+            <div className={`text-center text-sm mt-2 ${resetMsg.includes('sent') ? 'text-emerald-700' : 'text-red-600'}`}>{resetMsg}</div>
+          )}
+          <button
+            type="button"
+            className="w-full mt-2 text-emerald-600 hover:text-emerald-700 text-xs underline"
+            onClick={() => { setShowForgot(false); setResetMsg(null); setResetEmail(''); }}
+          >
+            Back to Sign In
+          </button>
+        </form>
+      )}
+    </>
   );
 }
 

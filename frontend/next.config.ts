@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Ensure /reset-password is a valid route for Supabase Auth redirect
 };
 
 export default nextConfig;
