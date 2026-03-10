@@ -43,10 +43,10 @@ function extractFields(text: string): Partial<GatheredTripDetails> {
   if (sourceMatch) result.source = sourceMatch[1];
 
   const destMatch = text.match(
-    /(?:\bto\b|visit|going to|travel to|trip to|heading to|destination is)\s+([A-Za-z]+(?:\s[A-Za-z]+)?)/i
+    /(?:visit|going to|travel to|trip to|heading to|destination is|want to go to|planning to visit)\s+([A-Za-z]+(?:\s[A-Za-z]+)?)/i
   );
   if (destMatch) result.destination = destMatch[1];
-
+  
   const spotsMatch = text.match(
     /(?:see|visit|like to see|want to see|check out)\s+(.+?)(?:\.|$)/i
   );
