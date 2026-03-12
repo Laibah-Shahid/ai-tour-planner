@@ -27,6 +27,7 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
 
   const toggleMode = (newMode: "signin" | "signup") => {
     setMode(newMode);
+    setError(null);
     router.replace(newMode === "signin" ? "/signin" : "/signup");
   };
 
@@ -38,6 +39,7 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
     formValues: { name?: string; email: string; password: string; confirm?: string }
   ) => {
     e.preventDefault();
+    setError(null);
     if (mode === 'signup' && formValues.password !== formValues.confirm) {
       setError('Passwords do not match');
       return;
@@ -169,6 +171,12 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
               )}
             </motion.div>
           </AnimatePresence>
+
+          {error && (
+          <div className="text-center text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+            {error}
+          </div>
+        )}
 
           <div className="pt-8 text-center text-xs text-slate-400 flex justify-center gap-6">
             <Link
