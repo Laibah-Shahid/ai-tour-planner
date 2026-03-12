@@ -209,7 +209,7 @@ function SignInForm({ loading, onSubmit, onOAuthSignIn }: {
     setResetMsg(null);
     const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
     // Point this to your callback route since you have it set up to handle the routing!
-    redirectTo: '${window.location.origin}/reset-password', 
+    redirectTo: `${window.location.origin}/reset-password`, 
       });
     if (error) {
       setResetMsg(error.message);
