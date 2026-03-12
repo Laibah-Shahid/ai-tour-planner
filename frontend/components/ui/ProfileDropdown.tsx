@@ -1,8 +1,8 @@
 import React, { useRef, useEffect, useState } from "react";
-import { supabase } from "@/lib/utils";
 import Image from "next/image";
+import type { User } from "@supabase/supabase-js";
 
-export default function ProfileDropdown({ user, onSignOut }: { user: any; onSignOut: () => void }) {
+export default function ProfileDropdown({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 

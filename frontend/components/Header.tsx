@@ -8,7 +8,6 @@ import Logo from "@/components/ui/Logo";
 
 import { NAV_ITEMS } from "@/config/site";
 import { useUserSession } from "@/lib/useUserSession";
-import Image from "next/image";
 import ProfileDropdown from "@/components/ui/ProfileDropdown";
 
 export default function Header() {
@@ -56,12 +55,8 @@ export default function Header() {
 
 
   const { user, loading } = useUserSession();
-  const [signingOut, setSigningOut] = useState(false);
-
   async function handleSignOut() {
-    setSigningOut(true);
     await import("@/lib/utils").then(({ supabase }) => supabase.auth.signOut());
-    setSigningOut(false);
     window.location.href = "/";
   }
 

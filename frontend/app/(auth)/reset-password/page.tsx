@@ -7,7 +7,6 @@ import { Loader2, Lock, CheckCircle2 } from "lucide-react";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const params = useSearchParams();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);

@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import Logo from "@/components/ui/Logo";
 import FloatingInput from "@/components/ui/FloatingInput";
-import { SIMULATED_DELAY } from "@/config/site";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Mail, User, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
@@ -41,7 +40,7 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
     setLoading(true);
     let error = null;
     if (mode === 'signup') {
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email: formValues.email,
         password: formValues.password,
         options: {
@@ -50,7 +49,7 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
       });
       error = signUpError;
     } else {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: formValues.email,
         password: formValues.password
       });
@@ -199,7 +198,10 @@ function SignInForm({ loading, onSubmit, onOAuthSignIn }: {
     e.preventDefault();
     setResetLoading(true);
     setResetMsg(null);
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+    // Point this to your callback route since you have it set up to handle the routing!
+    redirectTo: 'http://localhost:3000/reset-password', 
+      });
     if (error) {
       setResetMsg(error.message);
     } else {
@@ -416,7 +418,7 @@ function SignUpForm({ loading, onSubmit, onOAuthSignIn }: {
           className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl py-2.5 px-4 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium text-slate-700"
           disabled={loading}
         >
-          <img src="/images/google.svg" alt="Google" className="w-5 h-5" />
+          <Image src="/images/google.svg" alt="Google" width={20} height={20} />
           <span>Google</span>
         </button>
       </div>

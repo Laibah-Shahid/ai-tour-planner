@@ -10,7 +10,7 @@ export function useUserSession() {
     let mounted = true;
     async function getSession() {
       setLoading(true);
-      const { data, error } = await supabase.auth.getSession();
+      const { data } = await supabase.auth.getSession();
       if (mounted) {
         setUser(data?.session?.user || null);
         setLoading(false);
