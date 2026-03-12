@@ -1,20 +1,31 @@
 "use client";
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/utils";
 import FloatingInput from "@/components/ui/FloatingInput";
 import { Loader2, Lock, CheckCircle2 } from "lucide-react";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
+  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current);
+      }
+    };
+  }, []);
 
   async function handleReset(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
+    setSuccess(false);
     if (!password || password.length < 6) {
       setMsg("Password must be at least 6 characters.");
       return;
@@ -29,8 +40,9 @@ export default function ResetPasswordPage() {
     if (error) {
       setMsg(error.message);
     } else {
+      setSuccess(true);
       setMsg("Password updated! You can now sign in.");
-      setTimeout(() => router.push("/signin"), 2000);
+      redirectTimeoutRef.current = setTimeout(() => router.push("/signin"), 2000);
     }
   }
 
@@ -66,7 +78,7 @@ export default function ResetPasswordPage() {
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Update Password</span>}
         </button>
         {msg && (
-          <div className={`text-center text-sm mt-2 ${msg.includes("updated") ? "text-emerald-700" : "text-red-600"}`}>{msg}</div>
+          <div className={`text-center text-sm mt-2 ${success ? "text-emerald-700" : "text-red-600"}`}>{msg}</div>
         )}
       </form>
     </div>

@@ -9,6 +9,7 @@ import Logo from "@/components/ui/Logo";
 import { NAV_ITEMS } from "@/config/site";
 import { useUserSession } from "@/lib/useUserSession";
 import ProfileDropdown from "@/components/ui/ProfileDropdown";
+import { supabase } from "@/lib/utils";
 
 export default function Header() {
   const [activeSection, setActiveSection] = useState("home");
@@ -56,7 +57,8 @@ export default function Header() {
 
   const { user, loading } = useUserSession();
   async function handleSignOut() {
-    await import("@/lib/utils").then(({ supabase }) => supabase.auth.signOut());
+    await supabase.auth.signOut();
+    // Full reload to clear all client-side cached state
     window.location.href = "/";
   }
 

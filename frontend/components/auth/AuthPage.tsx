@@ -19,6 +19,7 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setMode(initialMode);
@@ -34,9 +35,13 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
   const handleSubmit = async (
     e: React.FormEvent,
     mode: 'signin' | 'signup',
-    formValues: { name?: string; email: string; password: string }
+    formValues: { name?: string; email: string; password: string; confirm?: string }
   ) => {
     e.preventDefault();
+    if (mode === 'signup' && formValues.password !== formValues.confirm) {
+      setError('Passwords do not match');
+      return;
+    }
     setLoading(true);
     let error = null;
     if (mode === 'signup') {
@@ -61,14 +66,18 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
       router.push('/');
     } else {
       // Optionally show error to user
-      alert(error.message);
+      setError(error.message);
     }
   };
 
-  const handleOAuthSignIn = async (provider: 'google' | 'github') => {
+  const handleOAuthSignIn = async (provider: 'google') => {
     setLoading(true);
-    await supabase.auth.signInWithOAuth({ provider });
-    setLoading(false);
+    const { error } = await supabase.auth.signInWithOAuth({ provider });
+    if (error) {
+      setLoading(false);
+      setError(error.message); // or set inline error state
+    }
+    // If successful, user is redirected - no need to setLoading(false)
   };
 
   return (
@@ -185,7 +194,7 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
 function SignInForm({ loading, onSubmit, onOAuthSignIn }: {
   loading: boolean;
   onSubmit: (e: React.FormEvent, values: { email: string; password: string }) => void;
-  onOAuthSignIn: (provider: 'google' | 'github') => void;
+  onOAuthSignIn: (provider: 'google') => void;
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -200,7 +209,7 @@ function SignInForm({ loading, onSubmit, onOAuthSignIn }: {
     setResetMsg(null);
     const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
     // Point this to your callback route since you have it set up to handle the routing!
-    redirectTo: 'http://localhost:3000/reset-password', 
+    redirectTo: '${window.location.origin}/reset-password', 
       });
     if (error) {
       setResetMsg(error.message);
@@ -276,7 +285,7 @@ function SignInForm({ loading, onSubmit, onOAuthSignIn }: {
               className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl py-2.5 px-4 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium text-slate-700"
               disabled={loading}
             >
-              <img src="/images/google.svg" alt="Google" className="w-5 h-5" />
+               <Image src="/images/google.svg" alt="Google" width={20} height={20} />
               <span>Google</span>
             </button>
           </div>
@@ -319,14 +328,22 @@ function SignInForm({ loading, onSubmit, onOAuthSignIn }: {
 function SignUpForm({ loading, onSubmit, onOAuthSignIn }: {
   loading: boolean;
   onSubmit: (e: React.FormEvent, values: { name: string; email: string; password: string; confirm: string }) => void;
-  onOAuthSignIn: (provider: 'google' | 'github') => void;
+  onOAuthSignIn: (provider: 'google') => void;
 }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [agreedToPolicy, setAgreedToPolicy] = useState(false);
   return (
-    <form onSubmit={e => onSubmit(e, { name, email, password, confirm })} className="space-y-4">
+    <form onSubmit={e => {
+      if (!agreedToPolicy) {
+        e.preventDefault();
+        alert('Please agree to the Privacy Policy');
+        return;
+      }
+      onSubmit(e, { name, email, password, confirm });
+    }} className="space-y-4">
       <div className="space-y-3">
         <FloatingInput
           id="signup-name"
@@ -369,7 +386,10 @@ function SignUpForm({ loading, onSubmit, onOAuthSignIn }: {
             id="privacy"
             name="privacy"
             type="checkbox"
+            checked={agreedToPolicy}
+            onChange={e => setAgreedToPolicy(e.target.checked)}
             className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300 rounded cursor-pointer"
+            required
           />
         </div>
         <div className="ml-3 text-sm">

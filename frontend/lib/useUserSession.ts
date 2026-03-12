@@ -10,7 +10,10 @@ export function useUserSession() {
     let mounted = true;
     async function getSession() {
       setLoading(true);
-      const { data } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('Failed to get session:', error.message);
+      }
       if (mounted) {
         setUser(data?.session?.user || null);
         setLoading(false);

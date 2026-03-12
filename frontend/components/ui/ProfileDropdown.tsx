@@ -55,14 +55,16 @@ export default function ProfileDropdown({ user, onSignOut }: { user: User; onSig
             </div>
           </div>
           <button
-            className="w-full text-left px-4 py-2 mt-2 text-emerald-700 hover:bg-emerald-50 rounded-lg font-medium"
-            // TODO: Profile action
+            className="w-full text-left px-4 py-2 mt-2 text-emerald-400 bg-emerald-50 rounded-lg font-medium cursor-not-allowed opacity-60"
+            disabled
+            aria-disabled="true"
           >
             Profile
           </button>
           <button
-            className="w-full text-left px-4 py-2 text-emerald-700 hover:bg-emerald-50 rounded-lg font-medium"
-            // TODO: Settings action
+            className="w-full text-left px-4 py-2 text-emerald-400 bg-emerald-50 rounded-lg font-medium cursor-not-allowed opacity-60"
+            disabled
+            aria-disabled="true"
           >
             Settings
           </button>
