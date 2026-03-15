@@ -1,7 +1,16 @@
 import type { NextConfig } from "next";
 
+
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+      },
+    ],
+  },
+  // Ensure /reset-password is a valid route for Supabase Auth redirect
 };
 
 export default nextConfig;

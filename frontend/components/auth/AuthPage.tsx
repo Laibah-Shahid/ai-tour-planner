@@ -1,14 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Logo from "@/components/ui/Logo";
+import FloatingInput from "@/components/ui/FloatingInput";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Mail, User, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import Logo from "@/components/ui/Logo";
-import FloatingInput from "@/components/ui/FloatingInput";
-import { SIMULATED_DELAY } from "@/config/site";
+
+import { supabase } from "@/lib/utils";
 
 interface AuthPageProps {
   initialMode?: "signin" | "signup";
@@ -18,6 +19,7 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setMode(initialMode);
@@ -25,14 +27,65 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
 
   const toggleMode = (newMode: "signin" | "signup") => {
     setMode(newMode);
+    setError(null);
     router.replace(newMode === "signin" ? "/signin" : "/signup");
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+
+  // Handles both sign in and sign up
+  const handleSubmit = async (
+    e: React.FormEvent,
+    mode: 'signin' | 'signup',
+    formValues: { name?: string; email: string; password: string; confirm?: string }
+  ) => {
     e.preventDefault();
+    setError(null);
+    if (mode === 'signup' && formValues.password !== formValues.confirm) {
+      setError('Passwords do not match');
+      return;
+    }
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, SIMULATED_DELAY));
+    let error = null;
+    if (mode === 'signup') {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: formValues.email,
+        password: formValues.password,
+        options: {
+          data: { full_name: formValues.name }
+        }
+      });
+      error = signUpError;
+      if (!signUpError && !data.session) {
+        setLoading(false);
+        setError("Check your email to confirm your account before signing in.");
+        return;
+      }
+    } else {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: formValues.email,
+        password: formValues.password
+      });
+      error = signInError;
+    }
     setLoading(false);
+    if (!error) {
+      // Redirect or show success
+      router.push('/');
+    } else {
+      // Optionally show error to user
+      setError(error.message);
+    }
+  };
+
+  const handleOAuthSignIn = async (provider: 'google') => {
+    setError(null);
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({ provider });
+    if (error) {
+      setLoading(false);
+      setError(error.message); // or set inline error state
+    }
+    // If successful, user is redirected - no need to setLoading(false)
   };
 
   return (
@@ -118,12 +171,21 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
               transition={{ duration: 0.2 }}
             >
               {mode === "signin" ? (
-                <SignInForm loading={loading} onSubmit={handleSubmit} />
+                <SignInForm loading={loading} onSubmit={(e, values) => handleSubmit(e, 'signin', values)} onOAuthSignIn={handleOAuthSignIn} />
               ) : (
-                <SignUpForm loading={loading} onSubmit={handleSubmit} />
+                <SignUpForm loading={loading} onSubmit={(e, values) => handleSubmit(e, 'signup', values)} onOAuthSignIn={handleOAuthSignIn} />
               )}
             </motion.div>
           </AnimatePresence>
+
+          {error && (
+           <div
+             role="alert"
+             className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+           >
+             {error}
+           </div>
+         )}
 
           <div className="pt-8 text-center text-xs text-slate-400 flex justify-center gap-6">
             <Link
@@ -146,77 +208,176 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
   );
 }
 
-function SignInForm({
-  loading,
-  onSubmit,
-}: {
+function SignInForm({ loading, onSubmit, onOAuthSignIn }: {
   loading: boolean;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent, values: { email: string; password: string }) => void;
+  onOAuthSignIn: (provider: 'google') => void;
 }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showForgot, setShowForgot] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMsg, setResetMsg] = useState<string|null>(null);
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setResetLoading(true);
+    setResetMsg(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+    // Point this to your callback route since you have it set up to handle the routing!
+    redirectTo: `${window.location.origin}/reset-password`, 
+      });
+    if (error) {
+      setResetMsg(error.message);
+    } else {
+      setResetMsg('Password reset email sent! Check your inbox.');
+    }
+    setResetLoading(false);
+  }
+
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div className="space-y-4">
-        <FloatingInput
-          id="signin-email"
-          label="Email Address"
-          type="email"
-          icon={<Mail className="h-5 w-5" />}
-        />
-        <FloatingInput
-          id="signin-password"
-          label="Password"
-          icon={<Lock className="h-5 w-5" />}
-          showPasswordToggle
-        />
-      </div>
+    <>
+      {!showForgot ? (
+        <form onSubmit={e => onSubmit(e, { email, password })} className="space-y-4">
+          <div className="space-y-4">
+            <FloatingInput
+              id="signin-email"
+              label="Email Address"
+              type="email"
+              icon={<Mail className="h-5 w-5" />}
+              value={email}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+            />
+            <FloatingInput
+              id="signin-password"
+              label="Password"
+              icon={<Lock className="h-5 w-5" />}
+              showPasswordToggle
+              value={password}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+            />
+          </div>
 
-      <div className="flex items-center justify-end">
-        <Link
-          href="#"
-          className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
-        >
-          Forgot Password?
-        </Link>
-      </div>
+          <div className="flex items-center justify-end">
+            <button
+              type="button"
+              className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+              onClick={() => setShowForgot(true)}
+            >
+              Forgot Password?
+            </button>
+          </div>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all hover:shadow-emerald-600/30 focus:ring-4 focus:ring-emerald-600/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
-      >
-        {loading ? (
-          <Loader2 className="w-5 h-5 animate-spin" />
-        ) : (
-          <>
-            <span>Sign In</span>
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </>
-        )}
-      </button>
-    </form>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all hover:shadow-emerald-600/30 focus:ring-4 focus:ring-emerald-600/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
+          >
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <span>Sign In</span>
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </>
+            )}
+          </button>
+
+          {/* Visual Divider */}
+          <div className="relative mt-6 mb-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-slate-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-slate-500 font-medium">Or continue with</span>
+            </div>
+          </div>
+
+          {/* OAuth Buttons Row */}
+          <div className="flex flex-row gap-3">
+            <button
+              type="button"
+              onClick={() => onOAuthSignIn('google')}
+              className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl py-2.5 px-4 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium text-slate-700"
+              disabled={loading}
+            >
+               <Image src="/images/google.svg" alt="Google" width={20} height={20} />
+              <span>Google</span>
+            </button>
+          </div>
+        </form>
+      ) : (
+        <form onSubmit={handleForgotPassword} className="space-y-4 bg-slate-50 p-6 rounded-xl border border-slate-200">
+          <div className="text-center font-semibold text-emerald-700 text-lg mb-2">Reset Password</div>
+          <FloatingInput
+            id="reset-email"
+            label="Email Address"
+            type="email"
+            icon={<Mail className="h-5 w-5" />}
+            value={resetEmail}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setResetEmail(e.target.value)}
+            required
+          />
+          <button
+            type="submit"
+            disabled={resetLoading}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all focus:ring-4 focus:ring-emerald-600/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {resetLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Send Reset Email</span>}
+          </button>
+          {resetMsg && (
+            <div className={`text-center text-sm mt-2 ${resetMsg.includes('sent') ? 'text-emerald-700' : 'text-red-600'}`}>{resetMsg}</div>
+          )}
+          <button
+            type="button"
+            className="w-full mt-2 text-emerald-600 hover:text-emerald-700 text-xs underline"
+            onClick={() => { setShowForgot(false); setResetMsg(null); setResetEmail(''); }}
+          >
+            Back to Sign In
+          </button>
+        </form>
+      )}
+    </>
   );
 }
 
-function SignUpForm({
-  loading,
-  onSubmit,
-}: {
+function SignUpForm({ loading, onSubmit, onOAuthSignIn }: {
   loading: boolean;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent, values: { name: string; email: string; password: string; confirm: string }) => void;
+  onOAuthSignIn: (provider: 'google') => void;
 }) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [agreedToPolicy, setAgreedToPolicy] = useState(false);
+  const [policyError, setPolicyError] = useState<string | null>(null);
   return (
-    <form onSubmit={onSubmit} className="space-y-3">
+    <form onSubmit={e => {
+      setPolicyError(null);
+      if (!agreedToPolicy) {
+        e.preventDefault();
+        setPolicyError('Please agree to the Privacy Policy');
+        return;
+      }
+      onSubmit(e, { name, email, password, confirm });
+    }} className="space-y-4">
       <div className="space-y-3">
         <FloatingInput
           id="signup-name"
           label="Full Name"
           icon={<User className="h-5 w-5" />}
+          value={name}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
         />
         <FloatingInput
           id="signup-email"
           label="Email Address"
           type="email"
           icon={<Mail className="h-5 w-5" />}
+          value={email}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
         />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <FloatingInput
@@ -224,23 +385,30 @@ function SignUpForm({
             label="Password"
             icon={<Lock className="h-5 w-5" />}
             showPasswordToggle
+            value={password}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
           />
           <FloatingInput
             id="signup-confirm"
             label="Confirm"
             icon={<CheckCircle2 className="h-5 w-5" />}
             showPasswordToggle
+            value={confirm}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirm(e.target.value)}
           />
         </div>
       </div>
 
-      <div className="flex items-start">
+      <div className="flex items-start pt-1">
         <div className="flex items-center h-5">
           <input
             id="privacy"
             name="privacy"
             type="checkbox"
+            checked={agreedToPolicy}
+            onChange={e => setAgreedToPolicy(e.target.checked)}
             className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300 rounded cursor-pointer"
+            required
           />
         </div>
         <div className="ml-3 text-sm">
@@ -259,7 +427,7 @@ function SignUpForm({
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all hover:shadow-emerald-600/30 focus:ring-4 focus:ring-emerald-600/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
+        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all hover:shadow-emerald-600/30 focus:ring-4 focus:ring-emerald-600/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
       >
         {loading ? (
           <Loader2 className="w-5 h-5 animate-spin" />
@@ -270,6 +438,39 @@ function SignUpForm({
           </>
         )}
       </button>
+
+      {/* Visual Divider */}
+      <div className="relative mt-6 mb-4">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-slate-200" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-white px-2 text-slate-500 font-medium">Or continue with</span>
+        </div>
+      </div>
+
+      {/* OAuth Buttons Row */}
+      <div className="flex flex-row gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            setPolicyError(null);
+            if (!agreedToPolicy) {
+              setPolicyError('Please agree to the Privacy Policy');
+              return;
+            }
+            onOAuthSignIn('google');
+          }}
+          className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl py-2.5 px-4 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium text-slate-700"
+          disabled={loading}
+        >
+          <Image src="/images/google.svg" alt="Google" width={20} height={20} />
+          <span>Google</span>
+        </button>
+      </div>
+      {policyError && (
+        <div className="text-center text-sm mt-2 text-red-600 font-medium">{policyError}</div>
+      )}
     </form>
   );
 }

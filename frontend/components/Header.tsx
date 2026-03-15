@@ -5,7 +5,11 @@ import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Logo from "@/components/ui/Logo";
+
 import { NAV_ITEMS } from "@/config/site";
+import { useUserSession } from "@/lib/useUserSession";
+import ProfileDropdown from "@/components/ui/ProfileDropdown";
+import { supabase } from "@/lib/utils";
 
 export default function Header() {
   const [activeSection, setActiveSection] = useState("home");
@@ -48,6 +52,15 @@ export default function Header() {
   }, []);
 
   const closeMobile = () => setMobileOpen(false);
+
+
+
+  const { user, loading } = useUserSession();
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    // Full reload to clear all client-side cached state
+    window.location.href = "/";
+  }
 
   return (
     <header
@@ -96,20 +109,19 @@ export default function Header() {
           ))}
         </nav>
 
-        {/* Desktop Buttons */}
+        {/* Desktop Auth/Profile */}
         <div className="hidden lg:flex items-center space-x-4">
-          <Link
-            href="/signin"
-            className="text-white hover:text-emerald-400 transition-colors font-medium"
-          >
-            Sign In
-          </Link>
-          <Link
-            href="/build-trip"
-            className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-2.5 rounded-xl font-medium hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 shadow-lg shadow-emerald-500/25"
-          >
-            Start Planning
-          </Link>
+          {!loading && !user && (
+            <Link
+              href="/signin"
+              className="text-white hover:text-emerald-400 transition-colors font-medium"
+            >
+              Sign In
+            </Link>
+          )}
+          {!loading && user && (
+            <ProfileDropdown user={user} onSignOut={handleSignOut} />
+          )}
         </div>
 
         {/* Mobile Hamburger */}
@@ -177,20 +189,18 @@ export default function Header() {
               </nav>
 
               <div className="mt-auto flex flex-col space-y-3 pt-8 border-t border-emerald-800">
-                <Link
-                  href="/signin"
-                  onClick={closeMobile}
-                  className="text-center text-white hover:text-emerald-300 transition-colors font-medium py-2"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/build-trip"
-                  onClick={closeMobile}
-                  className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-medium text-center hover:from-emerald-600 hover:to-emerald-700 transition-all"
-                >
-                  Start Planning
-                </Link>
+                {!loading && !user && (
+                  <Link
+                    href="/signin"
+                    onClick={closeMobile}
+                    className="text-center text-white hover:text-emerald-300 transition-colors font-medium py-2"
+                  >
+                    Sign In
+                  </Link>
+                )}
+                {!loading && user && (
+                  <ProfileDropdown user={user} onSignOut={handleSignOut} />
+                )}
               </div>
             </motion.div>
           </>

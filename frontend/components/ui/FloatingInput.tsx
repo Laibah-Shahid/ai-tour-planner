@@ -11,6 +11,8 @@ interface FloatingInputProps {
   showPasswordToggle?: boolean;
   required?: boolean;
   className?: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export default function FloatingInput({
@@ -21,6 +23,8 @@ export default function FloatingInput({
   showPasswordToggle = false,
   required = true,
   className = "",
+  value,
+  onChange,
 }: FloatingInputProps) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -41,6 +45,8 @@ export default function FloatingInput({
         className="block w-full pl-10 pr-10 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-900 placeholder-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all peer"
         placeholder={label}
         id={id}
+        value={value}
+        onChange={onChange}
       />
       <label
         htmlFor={id}
