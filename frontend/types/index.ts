@@ -48,12 +48,29 @@ export interface Feature {
 
 // ── Itinerary ────────────────────────────────────────────────────────────────
 
+export interface HotelRoom {
+  type: string;
+  beds: number;
+  size: string;
+  price: number;
+}
+
+export interface HotelReview {
+  user: string;
+  rating: number;
+  comment: string;
+}
+
 export interface Hotel {
   name: string;
   image: string;
   rating: number;
   address: string;
   pricePerNight: number;
+  images?: string[];
+  rooms?: HotelRoom[];
+  reviews?: HotelReview[];
+  amenities?: string[];
 }
 
 export interface ItineraryPlace {
