@@ -1,10 +1,14 @@
+
 import React, { useRef, useEffect, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 
 export default function ProfileDropdown({ user, onSignOut }: { user: User; onSignOut: () => void }) {
+
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -55,9 +59,11 @@ export default function ProfileDropdown({ user, onSignOut }: { user: User; onSig
             </div>
           </div>
           <button
-            className="w-full text-left px-4 py-2 mt-2 text-emerald-400 bg-emerald-50 rounded-lg font-medium cursor-not-allowed opacity-60"
-            disabled
-            aria-disabled="true"
+            className="w-full text-left px-4 py-2 mt-2 text-emerald-700 hover:bg-emerald-50 rounded-lg font-medium"
+            onClick={() => {
+              setOpen(false);
+              router.push("/profile");
+            }}
           >
             Profile
           </button>
