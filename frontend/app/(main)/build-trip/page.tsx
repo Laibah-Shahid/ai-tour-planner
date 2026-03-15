@@ -1,3 +1,15 @@
+// Local date helpers to avoid timezone issues
+const parseLocalDate = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+
+const formatLocalDate = (dt: Date) => {
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const d = String(dt.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
@@ -70,11 +82,11 @@ export default function BuildTripPage() {
           const newDays = value;
           let newEndDate = prev.end_date;
           if (prev.start_date && newDays && !isNaN(Number(newDays))) {
-            const start = new Date(prev.start_date);
+            const start = parseLocalDate(prev.start_date);
             if (!isNaN(start.getTime())) {
               const end = new Date(start);
               end.setDate(start.getDate() + Number(newDays) - 1);
-              newEndDate = end.toISOString().slice(0, 10);
+              newEndDate = formatLocalDate(end);
             }
           }
           return { ...prev, days: newDays, end_date: newEndDate };
@@ -98,15 +110,15 @@ export default function BuildTripPage() {
           let newEndDate = prev.end_date;
           let newDays = prev.days;
           if (lastDateField === 'days' && value && prev.days && !isNaN(Number(prev.days))) {
-            const start = new Date(value);
+            const start = parseLocalDate(value);
             if (!isNaN(start.getTime())) {
               const end = new Date(start);
               end.setDate(start.getDate() + Number(prev.days) - 1);
-              newEndDate = end.toISOString().slice(0, 10);
+              newEndDate = formatLocalDate(end);
             }
           } else if (lastDateField === 'end_date' && value && prev.end_date) {
-            const start = new Date(value);
-            const end = new Date(prev.end_date);
+            const start = parseLocalDate(value);
+            const end = parseLocalDate(prev.end_date);
             if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
               const diff = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
               newDays = diff > 0 ? String(diff) : "";
@@ -167,20 +179,34 @@ export default function BuildTripPage() {
         return typeof val === "string" ? val.trim().length > 0 : !!val;
       });
     }
-    return chatDetails !== null;
+    return (
+      chatDetails !== null &&
+      Array.isArray(chatDetails.destination) &&
+      chatDetails.destination.length > 0 &&
+      Array.isArray(chatDetails.spots) &&
+      chatDetails.source.trim().length > 0 &&
+      chatDetails.adults.trim().length > 0 &&
+      chatDetails.kids.trim().length > 0 &&
+      chatDetails.start_date.trim().length > 0 &&
+      chatDetails.end_date.trim().length > 0 &&
+      chatDetails.days.trim().length > 0
+    );
   }, [inputMethod, formData, chatDetails]);
 
   const handleGenerate = useCallback(async () => {
     if (!isComplete || loading) return;
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, SIMULATED_DELAY));
-    // Store trip details in localStorage for itinerary page
-    if (inputMethod === "form") {
-      localStorage.setItem("tripDetails", JSON.stringify(formData));
-    } else if (chatDetails) {
-      localStorage.setItem("tripDetails", JSON.stringify(chatDetails));
-    }
-    router.push("/itinerary");
+    try {
+   await new Promise((resolve) => setTimeout(resolve, SIMULATED_DELAY));
+   if (inputMethod === "form") {
+     localStorage.setItem("tripDetails", JSON.stringify(formData));
+   } else if (chatDetails) {
+     localStorage.setItem("tripDetails", JSON.stringify(chatDetails));
+   }
+   router.push("/itinerary");
+ } finally {
+   setLoading(false);
+ }
   }, [isComplete, loading, router, inputMethod, formData, chatDetails]);
 
   return (
@@ -268,7 +294,15 @@ export default function BuildTripPage() {
                       placeholder="e.g., 2"
                       className="focus-visible:ring-emerald-500"
                       value={formData.adults}
-                      onChange={handleFormChange}
+                      min={1}
+                      step={1}
+                      inputMode="numeric"
+                      pattern="\\d+"
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (!/^\d*$/.test(val) || val === "0") return;
+                        handleFormChange(e);
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
@@ -279,7 +313,15 @@ export default function BuildTripPage() {
                       placeholder="e.g., 1"
                       className="focus-visible:ring-emerald-500"
                       value={formData.kids}
-                      onChange={handleFormChange}
+                      min={0}
+                      step={1}
+                      inputMode="numeric"
+                      pattern="\\d+"
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (!/^\d*$/.test(val)) return;
+                        handleFormChange(e);
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
@@ -363,7 +405,7 @@ export default function BuildTripPage() {
                       className="focus-visible:ring-emerald-500"
                       value={formData.start_date}
                       onChange={handleFormChange}
-                      min={new Date().toISOString().slice(0, 10)}
+                      min={formatLocalDate(new Date())}
                     />
                   </div>
                   <div className="space-y-2">
@@ -384,13 +426,15 @@ export default function BuildTripPage() {
                       placeholder="e.g., 5"
                       className="focus-visible:ring-emerald-500"
                       value={formData.days}
-                      onChange={(e) => {
-                        // Prevent 0 or negative values
+                      min={1}
+                      step={1}
+                      inputMode="numeric"
+                      pattern="\\d+"
+                      onChange={e => {
                         const val = e.target.value;
-                        if (val === "0" || val.startsWith("-")) return;
+                        if (!/^\d*$/.test(val) || val === "0") return;
                         handleFormChange(e);
                       }}
-                      min={1}
                     />
                   </div>
                   <div className="space-y-2">
