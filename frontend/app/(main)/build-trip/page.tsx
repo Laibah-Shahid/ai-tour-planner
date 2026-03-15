@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, PenLine, MessageSquare } from "lucide-react";
+import { Loader2, PenLine, MessageSquare, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,13 +15,32 @@ import type { GatheredTripDetails } from "@/types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const INITIAL_FORM = {
-  people: "",
+type FormState = {
+  source: string;
+  destination: string[];
+  budget: string;
+  spots: string[];
+  notes: string;
+  start_date: string;
+  end_date: string;
+  days: string;
+  kids: string;
+  adults: string;
+  transport_type: string;
+};
+
+const INITIAL_FORM: FormState = {
   source: "",
-  destination: "",
+  destination: [],
   budget: "",
-  spots: "",
+  spots: [],
   notes: "",
+  start_date: "",
+  end_date: "",
+  days: "",
+  kids: "",
+  adults: "",
+  transport_type: "",
 };
 
 // ── BuildTripPage ─────────────────────────────────────────────────────────────
@@ -30,19 +49,55 @@ export default function BuildTripPage() {
   const router = useRouter();
   const [inputMethod, setInputMethod] = useState<"form" | "chat">("form");
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState(INITIAL_FORM);
+  const [formData, setFormData] = useState<FormState>(INITIAL_FORM);
+  const [spotInput, setSpotInput] = useState("");
+  const [destinationInput, setDestinationInput] = useState("");
   const [chatDetails, setChatDetails] = useState<GatheredTripDetails | null>(
     null
   );
 
   // Single handler for all form inputs — relies on `id` matching the field key
   const handleFormChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       const { id, value } = e.target;
-      setFormData((prev) => ({ ...prev, [id]: value }));
+      if (id === "spots") {
+        setSpotInput(value);
+      } else if (id === "destination") {
+        setDestinationInput(value);
+      } else {
+        setFormData((prev) => ({ ...prev, [id]: value }));
+      }
     },
     []
   );
+
+  // Add destination to array
+  const handleAddDestination = useCallback(() => {
+    const trimmed = destinationInput.trim();
+    if (trimmed && !formData.destination.includes(trimmed)) {
+      setFormData((prev) => ({ ...prev, destination: [...prev.destination, trimmed] }));
+      setDestinationInput("");
+    }
+  }, [destinationInput, formData.destination]);
+
+  // Remove destination from array
+  const handleRemoveDestination = useCallback((dest: string) => {
+    setFormData((prev) => ({ ...prev, destination: prev.destination.filter((d: string) => d !== dest) }));
+  }, []);
+
+  // Add spot to array
+  const handleAddSpot = useCallback(() => {
+    const trimmed = spotInput.trim();
+    if (trimmed && !formData.spots.includes(trimmed)) {
+      setFormData((prev) => ({ ...prev, spots: [...prev.spots, trimmed] }));
+      setSpotInput("");
+    }
+  }, [spotInput, formData.spots]);
+
+  // Remove spot from array
+  const handleRemoveSpot = useCallback((spot: string) => {
+    setFormData((prev) => ({ ...prev, spots: prev.spots.filter((s: string) => s !== spot) }));
+  }, []);
 
   const handleInputMethodChange = useCallback((value: string) => {
     setInputMethod(value as "form" | "chat");
@@ -51,9 +106,13 @@ export default function BuildTripPage() {
   // Button is enabled only when all required fields are satisfied
   const isComplete = useMemo(() => {
     if (inputMethod === "form") {
-      return (FORM_REQUIRED_FIELDS as readonly string[]).every(
-        (f) => !!formData[f as keyof typeof INITIAL_FORM].trim()
-      );
+      return (FORM_REQUIRED_FIELDS as readonly string[]).every((f) => {
+        if (f === "spots") {
+          return Array.isArray(formData.spots) && formData.spots.length > 0;
+        }
+        const val = formData[f as keyof FormState];
+        return typeof val === "string" ? val.trim().length > 0 : !!val;
+      });
     }
     return chatDetails !== null;
   }, [inputMethod, formData, chatDetails]);
@@ -143,13 +202,24 @@ export default function BuildTripPage() {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="people">Number of People</Label>
+                    <Label htmlFor="adults">Number of Adults <span className="text-red-500">*</span></Label>
                     <Input
-                      id="people"
+                      id="adults"
                       type="number"
                       placeholder="e.g., 2"
                       className="focus-visible:ring-emerald-500"
-                      value={formData.people}
+                      value={formData.adults}
+                      onChange={handleFormChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="kids">Number of Kids <span className="text-red-500">*</span></Label>
+                    <Input
+                      id="kids"
+                      type="number"
+                      placeholder="e.g., 1"
+                      className="focus-visible:ring-emerald-500"
+                      value={formData.kids}
                       onChange={handleFormChange}
                     />
                   </div>
@@ -165,7 +235,7 @@ export default function BuildTripPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="source">Starting Point</Label>
+                    <Label htmlFor="source">Starting Point <span className="text-red-500">*</span></Label>
                     <Input
                       id="source"
                       placeholder="e.g., Lahore"
@@ -174,27 +244,124 @@ export default function BuildTripPage() {
                       onChange={handleFormChange}
                     />
                   </div>
+                  <div className="md:col-span-2 space-y-2">
+                    <Label htmlFor="destination">Destinations <span className="text-red-500">*</span></Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="destination"
+                        placeholder="e.g., Skardu"
+                        className="focus-visible:ring-emerald-500"
+                        value={destinationInput}
+                        onChange={handleFormChange}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddDestination(); } }}
+                      />
+                      <Button type="button" onClick={handleAddDestination} disabled={!destinationInput.trim()}>
+                        Add
+                      </Button>
+                    </div>
+                    {/* List of added destinations */}
+                    {formData.destination.length > 0 && (
+                      <ul className="flex flex-wrap gap-2 mt-2">
+                        {formData.destination.map((dest: string) => (
+                          <li key={dest} className="flex items-center bg-emerald-100 rounded px-2 py-1">
+                            <span>{dest}</span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="ml-1 text-red-500 hover:text-red-700"
+                              onClick={() => handleRemoveDestination(dest)}
+                              aria-label="Remove destination"
+                            >
+                              <Trash className="w-4 h-4" />
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                   <div className="space-y-2">
-                    <Label htmlFor="destination">Destination</Label>
+                    <Label htmlFor="start_date">Start Date <span className="text-red-500">*</span></Label>
                     <Input
-                      id="destination"
-                      placeholder="e.g., Skardu"
+                      id="start_date"
+                      type="date"
                       className="focus-visible:ring-emerald-500"
-                      value={formData.destination}
+                      value={formData.start_date}
                       onChange={handleFormChange}
                     />
                   </div>
-                  <div className="md:col-span-2 space-y-2">
-                    <Label htmlFor="spots">
-                      Favorite Spots (Comma separated)
-                    </Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="end_date">End Date <span className="text-red-500">*</span></Label>
                     <Input
-                      id="spots"
-                      placeholder="e.g., Shangrila Resort, Deosai Plains"
+                      id="end_date"
+                      type="date"
                       className="focus-visible:ring-emerald-500"
-                      value={formData.spots}
+                      value={formData.end_date}
                       onChange={handleFormChange}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="days">Number of Days <span className="text-red-500">*</span></Label>
+                    <Input
+                      id="days"
+                      type="number"
+                      placeholder="e.g., 5"
+                      className="focus-visible:ring-emerald-500"
+                      value={formData.days}
+                      onChange={handleFormChange}
+                      min={1}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="transport_type">Transport Type</Label>
+                    <select
+                      id="transport_type"
+                      className="focus-visible:ring-emerald-500 w-full border rounded-md px-3 py-2"
+                      value={formData.transport_type}
+                      onChange={handleFormChange}
+                    >
+                      <option value="">Select transport</option>
+                      <option value="car">Car</option>
+                      <option value="bus">Bus</option>
+                      <option value="train">Train</option>
+                      <option value="plane">Plane</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2 space-y-2">
+                    <Label htmlFor="spots">Favorite Spots</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="spots"
+                        placeholder="e.g., Shangrila Resort"
+                        className="focus-visible:ring-emerald-500"
+                        value={spotInput}
+                        onChange={handleFormChange}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSpot(); } }}
+                      />
+                      <Button type="button" onClick={handleAddSpot} disabled={!spotInput.trim()}>
+                        Add
+                      </Button>
+                    </div>
+                    {/* List of added spots */}
+                    {formData.spots.length > 0 && (
+                      <ul className="flex flex-wrap gap-2 mt-2">
+                        {formData.spots.map((spot: string) => (
+                          <li key={spot} className="flex items-center bg-emerald-100 rounded px-2 py-1">
+                            <span>{spot}</span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="ml-1 text-red-500 hover:text-red-700"
+                              onClick={() => handleRemoveSpot(spot)}
+                            >
+                              ×
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                   <div className="md:col-span-2 space-y-2">
                     <Label htmlFor="notes">Additional Notes</Label>

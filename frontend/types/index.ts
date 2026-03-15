@@ -101,12 +101,17 @@ export interface ChatMessage {
 }
 
 export interface GatheredTripDetails {
-  destination: string;
+  destination: string[];
   source: string;
-  people: string;
   budget: string;
-  spots: string;
+  spots: string[]; // now an array
   notes: string;
+  start_date: string; // ISO date string
+  end_date: string;   // ISO date string (auto or user)
+  days: string;       // number of days (auto or user)
+  kids: string;       // number of kids
+  adults: string;     // number of adults
+  transport_type: string; // e.g., car, bus, train
 }
 
 export interface ItineraryData {
