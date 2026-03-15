@@ -13,10 +13,13 @@ export const SIMULATED_DELAY = 1500;
 // ── Build Trip ────────────────────────────────────────────────────────────────
 
 export const FORM_REQUIRED_FIELDS = [
-  "people",
   "source",
   "destination",
-  "budget",
+  "adults",
+  "kids",
+  "days",
+  "start_date",
+  "end_date",
 ] as const;
 
 // ── Chatbot ───────────────────────────────────────────────────────────────────

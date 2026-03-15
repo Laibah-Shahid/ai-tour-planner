@@ -52,9 +52,9 @@ export default function BuildTripPage() {
   const [formData, setFormData] = useState<FormState>(INITIAL_FORM);
   const [spotInput, setSpotInput] = useState("");
   const [destinationInput, setDestinationInput] = useState("");
-  const [chatDetails, setChatDetails] = useState<GatheredTripDetails | null>(
-    null
-  );
+  const [chatDetails, setChatDetails] = useState<GatheredTripDetails | null>(null);
+  // Track last edited field for date logic
+  const [lastDateField, setLastDateField] = useState<'days' | 'end_date' | null>(null);
 
   // Single handler for all form inputs — relies on `id` matching the field key
   const handleFormChange = useCallback(
@@ -64,11 +64,61 @@ export default function BuildTripPage() {
         setSpotInput(value);
       } else if (id === "destination") {
         setDestinationInput(value);
+      } else if (id === "days") {
+        setLastDateField('days');
+        setFormData((prev) => {
+          const newDays = value;
+          let newEndDate = prev.end_date;
+          if (prev.start_date && newDays && !isNaN(Number(newDays))) {
+            const start = new Date(prev.start_date);
+            if (!isNaN(start.getTime())) {
+              const end = new Date(start);
+              end.setDate(start.getDate() + Number(newDays) - 1);
+              newEndDate = end.toISOString().slice(0, 10);
+            }
+          }
+          return { ...prev, days: newDays, end_date: newEndDate };
+        });
+      } else if (id === "end_date") {
+        setLastDateField('end_date');
+        setFormData((prev) => {
+          let newDays = prev.days;
+          if (prev.start_date && value) {
+            const start = new Date(prev.start_date);
+            const end = new Date(value);
+            if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+              const diff = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+              newDays = diff > 0 ? String(diff) : "";
+            }
+          }
+          return { ...prev, end_date: value, days: newDays };
+        });
+      } else if (id === "start_date") {
+        setFormData((prev) => {
+          let newEndDate = prev.end_date;
+          let newDays = prev.days;
+          if (lastDateField === 'days' && value && prev.days && !isNaN(Number(prev.days))) {
+            const start = new Date(value);
+            if (!isNaN(start.getTime())) {
+              const end = new Date(start);
+              end.setDate(start.getDate() + Number(prev.days) - 1);
+              newEndDate = end.toISOString().slice(0, 10);
+            }
+          } else if (lastDateField === 'end_date' && value && prev.end_date) {
+            const start = new Date(value);
+            const end = new Date(prev.end_date);
+            if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+              const diff = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+              newDays = diff > 0 ? String(diff) : "";
+            }
+          }
+          return { ...prev, start_date: value, end_date: newEndDate, days: newDays };
+        });
       } else {
         setFormData((prev) => ({ ...prev, [id]: value }));
       }
     },
-    []
+    [lastDateField]
   );
 
   // Add destination to array
@@ -107,6 +157,9 @@ export default function BuildTripPage() {
   const isComplete = useMemo(() => {
     if (inputMethod === "form") {
       return (FORM_REQUIRED_FIELDS as readonly string[]).every((f) => {
+        if (f === "destination") {
+          return Array.isArray(formData.destination) && formData.destination.length > 0;
+        }
         if (f === "spots") {
           return Array.isArray(formData.spots) && formData.spots.length > 0;
         }
@@ -121,8 +174,14 @@ export default function BuildTripPage() {
     if (!isComplete || loading) return;
     setLoading(true);
     await new Promise((resolve) => setTimeout(resolve, SIMULATED_DELAY));
+    // Store trip details in localStorage for itinerary page
+    if (inputMethod === "form") {
+      localStorage.setItem("tripDetails", JSON.stringify(formData));
+    } else if (chatDetails) {
+      localStorage.setItem("tripDetails", JSON.stringify(chatDetails));
+    }
     router.push("/itinerary");
-  }, [isComplete, loading, router]);
+  }, [isComplete, loading, router, inputMethod, formData, chatDetails]);
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -231,7 +290,15 @@ export default function BuildTripPage() {
                       placeholder="e.g., 50000"
                       className="focus-visible:ring-emerald-500"
                       value={formData.budget}
+                      min={5000}
                       onChange={handleFormChange}
+                      onBlur={e => {
+                        const val = e.target.value;
+                        if (val && Number(val) < 5000) {
+                          // Optionally, show an error or reset to 5000
+                          setFormData(prev => ({ ...prev, budget: "5000" }));
+                        }
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
@@ -255,7 +322,12 @@ export default function BuildTripPage() {
                         onChange={handleFormChange}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddDestination(); } }}
                       />
-                      <Button type="button" onClick={handleAddDestination} disabled={!destinationInput.trim()}>
+                      <Button
+                        type="button"
+                        onClick={handleAddDestination}
+                        disabled={!destinationInput.trim()}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md px-4 py-2 rounded-md transition-colors"
+                      >
                         Add
                       </Button>
                     </div>
@@ -263,13 +335,16 @@ export default function BuildTripPage() {
                     {formData.destination.length > 0 && (
                       <ul className="flex flex-wrap gap-2 mt-2">
                         {formData.destination.map((dest: string) => (
-                          <li key={dest} className="flex items-center bg-emerald-100 rounded px-2 py-1">
-                            <span>{dest}</span>
+                          <li
+                            key={dest}
+                            className="flex items-center gap-2 bg-gradient-to-r from-emerald-100 to-emerald-200 border border-emerald-200 rounded-full px-4 py-1 shadow-sm hover:shadow-md transition-all"
+                          >
+                            <span className="font-medium text-emerald-900 truncate max-w-[120px]">{dest}</span>
                             <Button
                               type="button"
-                              size="sm"
+                              size="icon-sm"
                               variant="ghost"
-                              className="ml-1 text-red-500 hover:text-red-700"
+                              className="ml-1 text-emerald-600 hover:text-red-600 hover:bg-red-50 rounded-full p-1"
                               onClick={() => handleRemoveDestination(dest)}
                               aria-label="Remove destination"
                             >
@@ -288,6 +363,7 @@ export default function BuildTripPage() {
                       className="focus-visible:ring-emerald-500"
                       value={formData.start_date}
                       onChange={handleFormChange}
+                      min={new Date().toISOString().slice(0, 10)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -308,7 +384,12 @@ export default function BuildTripPage() {
                       placeholder="e.g., 5"
                       className="focus-visible:ring-emerald-500"
                       value={formData.days}
-                      onChange={handleFormChange}
+                      onChange={(e) => {
+                        // Prevent 0 or negative values
+                        const val = e.target.value;
+                        if (val === "0" || val.startsWith("-")) return;
+                        handleFormChange(e);
+                      }}
                       min={1}
                     />
                   </div>
@@ -339,7 +420,12 @@ export default function BuildTripPage() {
                         onChange={handleFormChange}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSpot(); } }}
                       />
-                      <Button type="button" onClick={handleAddSpot} disabled={!spotInput.trim()}>
+                      <Button
+                        type="button"
+                        onClick={handleAddSpot}
+                        disabled={!spotInput.trim()}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md px-4 py-2 rounded-md transition-colors"
+                      >
                         Add
                       </Button>
                     </div>
@@ -347,16 +433,20 @@ export default function BuildTripPage() {
                     {formData.spots.length > 0 && (
                       <ul className="flex flex-wrap gap-2 mt-2">
                         {formData.spots.map((spot: string) => (
-                          <li key={spot} className="flex items-center bg-emerald-100 rounded px-2 py-1">
-                            <span>{spot}</span>
+                          <li
+                            key={spot}
+                            className="flex items-center gap-2 bg-gradient-to-r from-emerald-100 to-emerald-200 border border-emerald-200 rounded-full px-4 py-1 shadow-sm hover:shadow-md transition-all"
+                          >
+                            <span className="font-medium text-emerald-900 truncate max-w-[120px]">{spot}</span>
                             <Button
                               type="button"
-                              size="sm"
+                              size="icon-sm"
                               variant="ghost"
-                              className="ml-1 text-red-500 hover:text-red-700"
+                              className="ml-1 text-emerald-600 hover:text-red-600 hover:bg-red-50 rounded-full p-1"
                               onClick={() => handleRemoveSpot(spot)}
+                              aria-label="Remove spot"
                             >
-                              ×
+                              <Trash className="w-4 h-4" />
                             </Button>
                           </li>
                         ))}
