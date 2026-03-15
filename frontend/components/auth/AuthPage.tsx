@@ -47,7 +47,7 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
     setLoading(true);
     let error = null;
     if (mode === 'signup') {
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email: formValues.email,
         password: formValues.password,
         options: {
@@ -55,6 +55,11 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
         }
       });
       error = signUpError;
+      if (!signUpError && !data.session) {
+        setLoading(false);
+        setError("Check your email to confirm your account before signing in.");
+        return;
+      }
     } else {
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: formValues.email,
@@ -73,6 +78,7 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
   };
 
   const handleOAuthSignIn = async (provider: 'google') => {
+    setError(null);
     setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({ provider });
     if (error) {
@@ -173,10 +179,13 @@ export default function AuthPage({ initialMode = "signin" }: AuthPageProps) {
           </AnimatePresence>
 
           {error && (
-          <div className="text-center text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
-            {error}
-          </div>
-        )}
+           <div
+             role="alert"
+             className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+           >
+             {error}
+           </div>
+         )}
 
           <div className="pt-8 text-center text-xs text-slate-400 flex justify-center gap-6">
             <Link
@@ -343,11 +352,13 @@ function SignUpForm({ loading, onSubmit, onOAuthSignIn }: {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [agreedToPolicy, setAgreedToPolicy] = useState(false);
+  const [policyError, setPolicyError] = useState<string | null>(null);
   return (
     <form onSubmit={e => {
+      setPolicyError(null);
       if (!agreedToPolicy) {
         e.preventDefault();
-        alert('Please agree to the Privacy Policy');
+        setPolicyError('Please agree to the Privacy Policy');
         return;
       }
       onSubmit(e, { name, email, password, confirm });
@@ -442,7 +453,14 @@ function SignUpForm({ loading, onSubmit, onOAuthSignIn }: {
       <div className="flex flex-row gap-3">
         <button
           type="button"
-          onClick={() => onOAuthSignIn('google')}
+          onClick={() => {
+            setPolicyError(null);
+            if (!agreedToPolicy) {
+              setPolicyError('Please agree to the Privacy Policy');
+              return;
+            }
+            onOAuthSignIn('google');
+          }}
           className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl py-2.5 px-4 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium text-slate-700"
           disabled={loading}
         >
@@ -450,6 +468,9 @@ function SignUpForm({ loading, onSubmit, onOAuthSignIn }: {
           <span>Google</span>
         </button>
       </div>
+      {policyError && (
+        <div className="text-center text-sm mt-2 text-red-600 font-medium">{policyError}</div>
+      )}
     </form>
   );
 }
