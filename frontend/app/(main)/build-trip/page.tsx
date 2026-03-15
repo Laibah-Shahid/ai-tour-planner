@@ -426,6 +426,7 @@ export default function BuildTripPage() {
                       className="focus-visible:ring-emerald-500"
                       value={formData.end_date}
                       onChange={handleFormChange}
+                      min={formData.start_date || formatLocalDate(new Date())}
                     />
                   </div>
                   <div className="space-y-2">
