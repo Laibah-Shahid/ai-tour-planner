@@ -1,18 +1,6 @@
-// Local date helpers to avoid timezone issues
-const parseLocalDate = (iso: string) => {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d);
-};
-
-const formatLocalDate = (dt: Date) => {
-  const y = dt.getFullYear();
-  const m = String(dt.getMonth() + 1).padStart(2, "0");
-  const d = String(dt.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, PenLine, MessageSquare, Trash } from "lucide-react";
@@ -25,7 +13,20 @@ import TripChatbot from "@/components/build-trip/TripChatbot";
 import { SIMULATED_DELAY, FORM_REQUIRED_FIELDS } from "@/config/site";
 import type { GatheredTripDetails } from "@/types";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// Local date helpers to avoid timezone issues
+const parseLocalDate = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+
+const formatLocalDate = (dt: Date) => {
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const d = String(dt.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+
 
 type FormState = {
   source: string;
@@ -68,6 +69,10 @@ export default function BuildTripPage() {
   // Track last edited field for date logic
   const [lastDateField, setLastDateField] = useState<'days' | 'end_date' | null>(null);
 
+  // Budget error state and timeout
+  const [budgetError, setBudgetError] = useState(false);
+  const budgetErrorTimeout = useRef<NodeJS.Timeout | null>(null);
+
   // Single handler for all form inputs — relies on `id` matching the field key
   const handleFormChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -96,8 +101,8 @@ export default function BuildTripPage() {
         setFormData((prev) => {
           let newDays = prev.days;
           if (prev.start_date && value) {
-            const start = new Date(prev.start_date);
-            const end = new Date(value);
+            const start = parseLocalDate(prev.start_date);
+            const end = parseLocalDate(value);
             if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
               const diff = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
               newDays = diff > 0 ? String(diff) : "";
@@ -330,18 +335,23 @@ export default function BuildTripPage() {
                       id="budget"
                       type="number"
                       placeholder="e.g., 50000"
-                      className="focus-visible:ring-emerald-500"
+                      className={`focus-visible:ring-emerald-500 ${budgetError ? 'border-red-500 ring-red-300' : ''}`}
                       value={formData.budget}
                       min={5000}
                       onChange={handleFormChange}
                       onBlur={e => {
                         const val = e.target.value;
                         if (val && Number(val) < 5000) {
-                          // Optionally, show an error or reset to 5000
                           setFormData(prev => ({ ...prev, budget: "5000" }));
+                          setBudgetError(true);
+                          if (budgetErrorTimeout.current) clearTimeout(budgetErrorTimeout.current);
+                          budgetErrorTimeout.current = setTimeout(() => setBudgetError(false), 2000);
                         }
                       }}
                     />
+                    {budgetError && (
+                      <div className="text-red-500 text-xs mt-1">Budget must be at least 5000 PKR. Value auto-corrected.</div>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="source">Starting Point <span className="text-red-500">*</span></Label>
