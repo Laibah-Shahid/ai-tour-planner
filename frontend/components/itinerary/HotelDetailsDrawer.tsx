@@ -56,6 +56,8 @@ export default function HotelDetailsDrawer({
           <>
             {/* Custom close button */}
             <button
+              type="button"
+              aria-label="Close hotel details"
               onClick={() => setSelectedHotel(null)}
               className="absolute top-4 right-4 z-50 bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow-md hover:bg-gray-100 transition-colors"
             >
