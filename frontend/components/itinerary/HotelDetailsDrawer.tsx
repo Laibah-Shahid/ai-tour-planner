@@ -203,6 +203,7 @@ export default function HotelDetailsDrawer({
                             <AvatarFallback className="bg-emerald-100 text-emerald-700 text-xs font-semibold">
                               {review.user
                                 .split(" ")
+                                .filter((n) => n.length > 0)
                                 .map((n) => n[0])
                                 .join("")
                                 .toUpperCase()
