@@ -186,11 +186,10 @@ export default function HotelDetailsDrawer({
                   </>
                 )}
 
-                <Separator />
-
                 {/* User Reviews */}
                 {hotel.reviews && hotel.reviews.length > 0 && (
                   <section>
+                    <Separator className="mb-5" />
                     <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
                       Guest Reviews
                     </h3>
