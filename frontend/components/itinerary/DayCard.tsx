@@ -7,57 +7,13 @@ import {
   ChevronDown,
   Clock,
   MapPin,
-  Star,
   BedDouble,
   Compass,
   ShoppingBag,
 } from "lucide-react";
+import HotelCard from "@/components/itinerary/HotelCard";
 import type { Hotel, ItineraryDay, ItineraryPlace } from "@/types";
 
-// ── Sub-components (used only within DayCard) ───────────────────────────────
-
-function StarRating({ rating }: { rating: number }) {
-  return (
-    <div className="flex items-center gap-0.5">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Star
-          key={i}
-          className={`w-3 h-3 ${
-            i < rating ? "text-amber-400 fill-amber-400" : "text-gray-200"
-          }`}
-        />
-      ))}
-    </div>
-  );
-}
-
-function HotelCard({ hotel }: { hotel: Hotel }) {
-  return (
-    <div className="bg-gray-50 rounded-xl overflow-hidden border border-gray-100">
-      <div className="relative h-36 w-full">
-        <Image
-          src={hotel.image}
-          alt={hotel.name}
-          fill
-          sizes="(max-width: 640px) 100vw, 50vw"
-          className="object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-      </div>
-      <div className="p-4">
-        <h4 className="font-semibold text-gray-900 text-sm mb-1">
-          {hotel.name}
-        </h4>
-        <StarRating rating={hotel.rating} />
-        <p className="text-xs text-gray-500 mt-1 mb-2">{hotel.address}</p>
-        <p className="text-sm font-semibold text-emerald-600">
-          PKR {hotel.pricePerNight.toLocaleString()}
-          <span className="text-xs font-normal text-gray-400"> / night</span>
-        </p>
-      </div>
-    </div>
-  );
-}
 
 function PlaceCard({ place }: { place: ItineraryPlace }) {
   return (
@@ -88,9 +44,10 @@ function PlaceCard({ place }: { place: ItineraryPlace }) {
 interface DayCardProps {
   day: ItineraryDay;
   defaultOpen?: boolean;
+  onHotelClick?: (hotel: Hotel) => void;
 }
 
-export default function DayCard({ day, defaultOpen = false }: DayCardProps) {
+export default function DayCard({ day, defaultOpen = false, onHotelClick }: DayCardProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
@@ -177,7 +134,7 @@ export default function DayCard({ day, defaultOpen = false }: DayCardProps) {
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {day.hotels.map((hotel, i) => (
-                      <HotelCard key={i} hotel={hotel} />
+                      <HotelCard key={i} hotel={hotel} onClick={onHotelClick ?? (() => {})} />
                     ))}
                   </div>
                 </div>

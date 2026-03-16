@@ -21,6 +21,22 @@ export const dummyItinerary: ItineraryData = {
           rating: 5,
           address: "Main Karakoram Highway, Karimabad, Hunza",
           pricePerNight: 12000,
+          images: [
+            "/pk-spots/hunza-valley.jpg",
+            "/pk-spots/skardu.jpg",
+            "/pk-spots/swat-valley.jpg",
+          ],
+          rooms: [
+            { type: "Deluxe Room", beds: 2, size: "35 sqm", price: 12000 },
+            { type: "Executive Suite", beds: 2, size: "55 sqm", price: 20000 },
+            { type: "Mountain View Room", beds: 1, size: "28 sqm", price: 9500 },
+          ],
+          reviews: [
+            { user: "Ali Raza", rating: 5, comment: "Breathtaking views and top-notch service. Highly recommended!" },
+            { user: "Sara Khan", rating: 5, comment: "Rooms were spotless with an incredible panorama of the valley." },
+            { user: "Usman Tariq", rating: 4, comment: "Great food and friendly staff. The mountain suite was worth every rupee." },
+          ],
+          amenities: ["wifi", "parking", "restaurant", "room_service", "breakfast", "tv", "security"],
         },
         {
           name: "Mountain Breeze Inn",
@@ -28,6 +44,20 @@ export const dummyItinerary: ItineraryData = {
           rating: 4,
           address: "Near Baltit Fort Road, Karimabad",
           pricePerNight: 8000,
+          images: [
+            "/pk-spots/skardu.jpg",
+            "/pk-spots/hunza-valley.jpg",
+            "/pk-spots/wazirkhan-mosque.jpg",
+          ],
+          rooms: [
+            { type: "Standard Room", beds: 1, size: "22 sqm", price: 8000 },
+            { type: "Family Room", beds: 3, size: "45 sqm", price: 14000 },
+          ],
+          reviews: [
+            { user: "Fatima Noor", rating: 4, comment: "Cozy and budget-friendly. Perfect for a short stay." },
+            { user: "Hassan Mir", rating: 4, comment: "Clean rooms and a very welcoming host." },
+          ],
+          amenities: ["wifi", "parking", "breakfast", "laundry", "security"],
         },
       ],
       places: [
@@ -69,6 +99,22 @@ export const dummyItinerary: ItineraryData = {
           rating: 5,
           address: "Duikar Village, Upper Hunza",
           pricePerNight: 15000,
+          images: [
+            "/pk-spots/hunza-valley.jpg",
+            "/pk-spots/swat-valley.jpg",
+            "/pk-spots/skardu.jpg",
+          ],
+          rooms: [
+            { type: "Panorama Suite", beds: 2, size: "60 sqm", price: 25000 },
+            { type: "Deluxe Double", beds: 2, size: "38 sqm", price: 15000 },
+            { type: "Single Room", beds: 1, size: "20 sqm", price: 10000 },
+          ],
+          reviews: [
+            { user: "Zara Ahmed", rating: 5, comment: "Waking up above the clouds was magical. Worth every penny!" },
+            { user: "Bilal Siddiqui", rating: 5, comment: "The panorama suite offers the best sunrise view in all of Hunza." },
+            { user: "Nida Hussain", rating: 4, comment: "Superb location, helpful staff and delicious breakfast." },
+          ],
+          amenities: ["wifi", "restaurant", "room_service", "breakfast", "spa", "gym", "tv", "security", "laundry"],
         },
       ],
       places: [
@@ -116,6 +162,20 @@ export const dummyItinerary: ItineraryData = {
           rating: 4,
           address: "Village Road, Passu, Gojal Valley",
           pricePerNight: 7000,
+          images: [
+            "/pk-spots/skardu.jpg",
+            "/pk-spots/hunza-valley.jpg",
+            "/pk-spots/wazirkhan-mosque.jpg",
+          ],
+          rooms: [
+            { type: "Lake View Room", beds: 2, size: "30 sqm", price: 10000 },
+            { type: "Standard Room", beds: 1, size: "20 sqm", price: 7000 },
+          ],
+          reviews: [
+            { user: "Kamran Ali", rating: 4, comment: "Lovely little inn with stunning views of Attabad Lake." },
+            { user: "Amna Malik", rating: 4, comment: "Simple but clean. Great value for the location." },
+          ],
+          amenities: ["wifi", "parking", "breakfast", "laundry"],
         },
       ],
       places: [
@@ -164,6 +224,21 @@ export const dummyItinerary: ItineraryData = {
           rating: 5,
           address: "Karimabad, Hunza",
           pricePerNight: 12000,
+          images: [
+            "/pk-spots/hunza-valley.jpg",
+            "/pk-spots/skardu.jpg",
+            "/pk-spots/swat-valley.jpg",
+          ],
+          rooms: [
+            { type: "Deluxe Room", beds: 2, size: "35 sqm", price: 12000 },
+            { type: "Executive Suite", beds: 2, size: "55 sqm", price: 20000 },
+            { type: "Mountain View Room", beds: 1, size: "28 sqm", price: 9500 },
+          ],
+          reviews: [
+            { user: "Ali Raza", rating: 5, comment: "Breathtaking views and top-notch service. Highly recommended!" },
+            { user: "Sara Khan", rating: 5, comment: "Rooms were spotless with an incredible panorama of the valley." },
+          ],
+          amenities: ["wifi", "parking", "restaurant", "room_service", "breakfast", "tv", "security"],
         },
       ],
       places: [

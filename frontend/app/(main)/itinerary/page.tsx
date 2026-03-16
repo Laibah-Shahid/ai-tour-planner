@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Calendar, MapPin, Sun, ArrowLeft } from "lucide-react";
 import { dummyItinerary } from "@/data/itinerary";
-import DayCard from "@/components/itinerary/DayCard";
+import ItineraryDaysSection from "@/components/itinerary/ItineraryDaysSection";
 import CostBreakdown from "@/components/itinerary/CostBreakdown";
 import TravelTips from "@/components/itinerary/TravelTips";
 import ItineraryCTA from "@/components/itinerary/ItineraryCTA";
@@ -57,28 +57,7 @@ export default function ItineraryPage() {
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
             Day-by-Day Itinerary
           </h2>
-          <div className="relative">
-            {days.map((day, index) => (
-              <div key={day.id} className="relative flex gap-5">
-                {/* Timeline track */}
-                <div className="flex flex-col items-center">
-                  {/* Node */}
-                  <div className="relative z-10 flex items-center justify-center w-9 h-9 rounded-full bg-emerald-600 text-white text-sm font-bold shadow-md shadow-emerald-200 ring-4 ring-emerald-100 flex-shrink-0">
-                    {index + 1}
-                  </div>
-                  {/* Connector line */}
-                  {index < days.length - 1 && (
-                    <div className="w-0.5 flex-1 bg-gradient-to-b from-emerald-400 to-emerald-200 my-1" />
-                  )}
-                </div>
-
-                {/* Card */}
-                <div className={`flex-1 ${index < days.length - 1 ? "pb-5" : ""}`}>
-                  <DayCard day={day} defaultOpen={index === 0} />
-                </div>
-              </div>
-            ))}
-          </div>
+          <ItineraryDaysSection days={days} />
         </section>
 
         {/* Tips + Cost Grid */}
