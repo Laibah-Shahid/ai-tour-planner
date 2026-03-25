@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 export interface Destination {
+  id?: string;
   name: string;
   image: string;
   description: string;
@@ -24,6 +25,7 @@ export interface Experience {
   description: string;
   image: string;
   category: string;
+  destinationId?: string;
 }
 
 export interface SeasonalHighlight {
@@ -87,6 +89,54 @@ export interface CostItem {
 export interface TravelTip {
   id: number;
   text: string;
+}
+
+// ── Destination Detail ────────────────────────────────────────────────────────
+
+export type BudgetLevel = "low" | "medium" | "high";
+
+export interface DestinationAttraction {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+}
+
+export interface DestinationHotel {
+  id: string;
+  name: string;
+  rating: number;
+  price: number;
+  image: string;
+  address?: string;
+  images?: string[];
+  amenities?: string[];
+  rooms?: HotelRoom[];
+  reviews?: HotelReview[];
+}
+
+export interface DestinationExperience {
+  id: string;
+  title: string;
+  duration: string;
+  price: number;
+}
+
+export interface DestinationDetail {
+  id: string;
+  name: string;
+  description: string;
+  rating: number;
+  category: string;
+  district: string;
+  images: string[];
+  best_season: string[];
+  budget: BudgetLevel;
+  avg_trip_cost: number;
+  ideal_duration: string;
+  attractions: DestinationAttraction[];
+  hotels: DestinationHotel[];
+  experiences: DestinationExperience[];
 }
 
 // ── Chat / Build-Trip ─────────────────────────────────────────────────────────

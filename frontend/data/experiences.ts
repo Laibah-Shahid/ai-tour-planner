@@ -8,6 +8,7 @@ export const experiences: Experience[] = [
       "Taste the authentic flavors of Punjab with a guided street food tour in the walled city.",
     image: "/pk-spots/wazirkhan-mosque.jpg",
     category: "Culinary",
+    destinationId: "lahore",
   },
   {
     id: 2,
@@ -16,6 +17,7 @@ export const experiences: Experience[] = [
       "Walk through the ancient streets of Altit and Baltit forts and meet the locals.",
     image: "/pk-spots/hunza-valley.jpg",
     category: "Culture",
+    destinationId: "hunza",
   },
   {
     id: 3,
@@ -24,5 +26,6 @@ export const experiences: Experience[] = [
       "Immerse yourself in the spiritual music of Qawwali at a local shrine.",
     image: "/pk-spots/faisal-mosque.jpg",
     category: "Music & Art",
+    destinationId: "islamabad",
   },
 ];

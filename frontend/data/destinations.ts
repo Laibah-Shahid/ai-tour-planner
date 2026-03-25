@@ -2,6 +2,7 @@ import type { Destination } from "@/types";
 
 export const destinations: Destination[] = [
   {
+    id: "hunza",
     name: "Hunza Valley",
     image: "/pk-spots/hunza-valley.jpg",
     description: "Breathtaking mountain scenery and ancient forts",
@@ -10,6 +11,7 @@ export const destinations: Destination[] = [
     tag: "Mountains",
   },
   {
+    id: "lahore",
     name: "Wazir Khan Mosque",
     image: "/pk-spots/wazirkhan-mosque.jpg",
     description: "Rich Mughal heritage and vibrant food culture",
@@ -18,6 +20,7 @@ export const destinations: Destination[] = [
     tag: "History",
   },
   {
+    id: "skardu",
     name: "Skardu",
     image: "/pk-spots/skardu.jpg",
     description: "Gateway to world's highest peaks and glacial lakes",
@@ -26,6 +29,7 @@ export const destinations: Destination[] = [
     tag: "Adventure",
   },
   {
+    id: "karachi",
     name: "Mohatta Palace",
     image: "/pk-spots/mohatta-palace.jpg",
     description: "Bustling metropolis with beautiful coastline",
@@ -34,6 +38,7 @@ export const destinations: Destination[] = [
     tag: "Art",
   },
   {
+    id: "swat",
     name: "Swat Valley",
     image: "/pk-spots/swat-valley.jpg",
     description: "Switzerland of Pakistan with lush green valleys",
@@ -42,6 +47,7 @@ export const destinations: Destination[] = [
     tag: "Nature",
   },
   {
+    id: "islamabad",
     name: "Shah Faisal Mosque",
     image: "/pk-spots/faisal-mosque.jpg",
     description: "Modern capital nestled in Margalla Hills",

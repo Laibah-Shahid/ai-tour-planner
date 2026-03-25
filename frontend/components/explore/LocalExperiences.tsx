@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { experiences } from "@/data/experiences";
 import SectionHeader from "@/components/ui/SectionHeader";
@@ -51,10 +52,13 @@ export default function LocalExperiences() {
               </div>
 
               <div className="flex-shrink-0 w-full md:w-auto">
-                <button className="w-full md:w-auto px-6 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2">
-                  Book Now
+                <Link
+                  href={exp.destinationId ? `/destination/${exp.destinationId}` : "/explore"}
+                  className="w-full md:w-auto px-6 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  Explore
                   <ArrowRight className="w-4 h-4" />
-                </button>
+                </Link>
               </div>
             </motion.div>
           ))}
