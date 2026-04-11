@@ -53,7 +53,7 @@ export default function ExploreGrid() {
                   {dest.description}
                 </p>
                 <Link
-                  href="/build-trip"
+                  href={dest.id ? `/destination/${dest.id}` : "/explore"}
                   className="w-full py-2.5 rounded-xl border border-emerald-500 text-emerald-600 font-medium hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center gap-2 group/btn"
                 >
                   Explore
