@@ -2,7 +2,7 @@
 Itinerary API routes — generate, CRUD, share, edit.
 """
 
-from fastapi import APIRouter, Depends, BackgroundTasks
+from fastapi import APIRouter, Body, Depends
 from app.middleware.auth import get_current_user, get_optional_user
 from app.models.schemas import (
     TripRequest,
@@ -52,7 +52,7 @@ async def generate_itinerary(
 
 @router.post("/generate-from-chat", response_model=ItineraryResponse)
 async def generate_from_chat(
-    trip_json: dict,
+    trip_json: dict = Body(...),
     user: dict = Depends(get_current_user),
 ):
     """Generate itinerary from chat planner structured output."""

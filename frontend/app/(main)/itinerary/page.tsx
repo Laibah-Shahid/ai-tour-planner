@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -33,6 +33,23 @@ import {
 import type { ItineraryResponseData, DisasterAlert } from "@/lib/api";
 
 export default function ItineraryPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-emerald-600 mx-auto mb-4" />
+            <p className="text-gray-600 text-lg">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <ItineraryPageContent />
+    </Suspense>
+  );
+}
+
+function ItineraryPageContent() {
   const searchParams = useSearchParams();
   const itineraryId = searchParams.get("id");
   const shareId = searchParams.get("shared");
