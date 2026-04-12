@@ -1,0 +1,26 @@
+# FastAPI & Server
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+python-multipart==0.0.20
+pydantic==2.11.3
+pydantic-settings==2.9.1
+
+# Supabase
+supabase==2.15.2
+
+# AI / ML
+langchain-openai==0.3.18
+langchain-core==0.3.55
+langgraph==0.4.7
+sentence-transformers==4.1.0
+scikit-learn==1.7.0
+numpy==2.3.0
+pandas==2.3.0
+
+# News fetching
+requests==2.32.3
+feedparser==6.0.11
+
+# Utilities
+python-dotenv==1.1.0
+openpyxl==3.1.5
