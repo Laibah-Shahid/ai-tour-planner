@@ -1,4 +1,3 @@
-import React from "react";
 import { ArrowRight, MessageCircle, Zap } from "lucide-react";
 import TouristSpots from "@/components/touristspot/TouristSpots";
 import Features from "@/components/features/Features";
@@ -38,12 +37,13 @@ export default function Homepage() {
 
       {/* Floating Chat Button */}
       <div className="fixed bottom-6 right-6 z-50">
-        <button
-          aria-label="Open chat"
-          className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white p-4 rounded-full shadow-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 hover:scale-110"
+        <Link
+          href="/build-trip?mode=chat"
+          aria-label="Plan trip via chat"
+          className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white p-4 rounded-full shadow-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 hover:scale-110 block"
         >
           <MessageCircle className="w-6 h-6" />
-        </button>
+        </Link>
       </div>
     </div>
   );

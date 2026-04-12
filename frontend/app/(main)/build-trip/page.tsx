@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, PenLine, MessageSquare, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -61,6 +61,7 @@ const INITIAL_FORM: FormState = {
 
 export default function BuildTripPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [inputMethod, setInputMethod] = useState<"form" | "chat">("form");
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<FormState>(INITIAL_FORM);
@@ -72,6 +73,13 @@ export default function BuildTripPage() {
 
   // Budget error state and timeout
   const [budgetError, setBudgetError] = useState(false);
+
+  // Auto-select chat mode if ?mode=chat in URL
+  useEffect(() => {
+    if (searchParams.get("mode") === "chat") {
+      setInputMethod("chat");
+    }
+  }, [searchParams]);
   const budgetErrorTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Single handler for all form inputs — relies on `id` matching the field key

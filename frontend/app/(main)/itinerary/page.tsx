@@ -434,7 +434,11 @@ function ItineraryPageContent() {
         </section>
 
         {/* CTA */}
-        <ItineraryCTA />
+        <ItineraryCTA
+          itineraryId={responseData?.id}
+          shareUrl={shareUrl}
+          onShare={handleShare}
+        />
 
         {/* Info text */}
         <p className="text-center text-xs text-gray-400 pb-4">
