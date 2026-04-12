@@ -8,6 +8,7 @@ from __future__ import annotations
 import difflib
 import json
 import logging
+import threading
 from math import atan2, cos, radians, sin, sqrt
 from typing import Any, Dict, List, Optional
 
@@ -416,12 +417,16 @@ Rules: Use each cluster exactly once. Return raw JSON only."""
 # ---------------------------------------------------------------------------
 
 _generator: ItineraryGenerator | None = None
+_generator_lock = threading.Lock()
 
 
 def get_generator() -> ItineraryGenerator:
+    """Thread-safe singleton accessor with double-checked locking."""
     global _generator
     if _generator is None:
-        logger.info("Initializing ItineraryGenerator (first request)...")
-        _generator = ItineraryGenerator()
-        logger.info("ItineraryGenerator ready.")
+        with _generator_lock:
+            if _generator is None:
+                logger.info("Initializing ItineraryGenerator (first request)...")
+                _generator = ItineraryGenerator()
+                logger.info("ItineraryGenerator ready.")
     return _generator

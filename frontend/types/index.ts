@@ -73,8 +73,8 @@ export interface Hotel {
   rooms?: HotelRoom[];
   reviews?: HotelReview[];
   amenities?: string[];
-  _key?: string;       // DB key — use with /api/explore/hotel/{hotel_id}
-  hotel_id?: string;
+  key?: string;        // DB key (Supabase _key column)
+  hotel_id?: string;   // Use with /api/explore/hotel/{hotel_id}
   place_id?: string;
 }
 
@@ -82,19 +82,19 @@ export interface ItineraryPlace {
   name: string;
   image: string;
   description: string;
-  _key?: string;       // DB primary key — use with /api/explore/place/{_key}
+  key?: string;        // DB primary key — use with /api/explore/place/{key}
 }
 
 export interface Souvenir {
   name: string;
   description: string;
-  _key?: string;       // DB primary key — use with /api/explore/place/{_key}
+  key?: string;        // DB primary key — use with /api/explore/place/{key}
 }
 
 export interface FoodSpot {
   name: string;
   description?: string;
-  _key?: string;       // DB primary key — use with /api/explore/place/{_key}
+  key?: string;        // DB primary key — use with /api/explore/place/{key}
 }
 
 export interface ItineraryDay {

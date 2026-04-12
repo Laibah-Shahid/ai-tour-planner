@@ -71,7 +71,7 @@ class HotelReview(BaseModel):
 
 class Hotel(BaseModel):
     name: str
-    _key: str = ""
+    key: str = ""            # Supabase PK (the original _key column)
     hotel_id: str = ""
     place_id: str = ""
     image: str = ""
@@ -87,20 +87,20 @@ class Hotel(BaseModel):
 # ---------- Itinerary ----------
 class ItineraryPlace(BaseModel):
     name: str
-    _key: str = ""           # Supabase PK — fetch details via /api/explore/place/{_key}
+    key: str = ""            # Supabase PK — fetch details via /api/explore/place/{key}
     image: str = ""
     description: str = ""
 
 
 class Souvenir(BaseModel):
     name: str
-    _key: str = ""           # Supabase PK
+    key: str = ""            # Supabase PK
     description: str = ""
 
 
 class FoodSpot(BaseModel):
     name: str
-    _key: str = ""           # Supabase PK
+    key: str = ""            # Supabase PK
     description: str = ""
 
 

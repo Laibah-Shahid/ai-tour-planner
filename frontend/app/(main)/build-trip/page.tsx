@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { Suspense, useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, PenLine, MessageSquare, Trash } from "lucide-react";
@@ -60,6 +60,20 @@ const INITIAL_FORM: FormState = {
 // ── BuildTripPage ─────────────────────────────────────────────────────────────
 
 export default function BuildTripPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+        </div>
+      }
+    >
+      <BuildTripPageContent />
+    </Suspense>
+  );
+}
+
+function BuildTripPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [inputMethod, setInputMethod] = useState<"form" | "chat">("form");

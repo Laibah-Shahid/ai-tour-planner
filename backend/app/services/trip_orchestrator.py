@@ -3,10 +3,10 @@ Orchestration layer — adapted from orches_layer.py.
 Chains multi-city chatbot output into per-segment itinerary generation.
 Converts raw engine output into a lean frontend-friendly ItineraryData.
 
-Design: Each place/hotel/food/souvenir returns only {name, _key}.
-The _key is the Supabase primary key, so the frontend fetches full
-details on demand via /api/explore endpoints. This keeps LLM token
-usage and JSON payload minimal.
+Design: Each place/hotel/food/souvenir returns only {name, key}.
+The `key` is the Supabase primary key (originally `_key` column),
+so the frontend fetches full details on demand via /api/explore
+endpoints. This keeps LLM token usage and JSON payload minimal.
 """
 
 from __future__ import annotations
@@ -148,33 +148,33 @@ def _build_itinerary_data(
             day_data = raw[day_key]
             day_counter += 1
 
-            # Places: name + _key (the Attractions PK)
+            # Places: name + key (the Attractions PK)
             places = []
             for attr_name in day_data.get("attractions", []):
-                places.append({"name": attr_name, "_key": attr_name})
+                places.append({"name": attr_name, "key": attr_name})
 
-            # Hotels: name + _key + hotel_id + price + rating
+            # Hotels: name + key + hotel_id + price + rating
             hotels = []
             for lname in day_data.get("lodging", []):
                 info = _find_in_pool(lname, all_lodging)
                 hotels.append({
                     "name": lname,
-                    "_key": lname,
+                    "key": lname,
                     "hotel_id": info.get("hotel_id", ""),
                     "place_id": info.get("place_id", info.get("place_id_ref", "")),
                     "pricePerNight": int(info.get("price", 0)),
                     "rating": float(info.get("rating", 0)),
                 })
 
-            # Food: name + _key
+            # Food: name + key
             food = [
-                {"name": f, "_key": f}
+                {"name": f, "key": f}
                 for f in day_data.get("food", [])
             ]
 
-            # Souvenirs: name + _key
+            # Souvenirs: name + key
             souvenirs = [
-                {"name": s, "_key": s}
+                {"name": s, "key": s}
                 for s in day_data.get("souvenir_shops", [])
             ]
 

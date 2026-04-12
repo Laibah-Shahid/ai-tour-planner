@@ -245,6 +245,8 @@ CREATE TABLE itinerary_shares (
 | GET | `/api/explore/destinations/{city}` | None | Destination detail |
 | GET | `/api/explore/attractions` | None | Search attractions |
 | GET | `/api/explore/hotels?city=X` | None | Search hotels |
+| GET | `/api/explore/place/{key}` | None | Fetch full place details by key (hydrates itinerary items) |
+| GET | `/api/explore/hotel/{hotel_id}` | None | Fetch full hotel details by hotel_id |
 
 ### Profile Endpoints
 | Method | Path | Auth | Description |
@@ -359,7 +361,57 @@ CREATE TABLE itinerary_shares (
 - **Fallback to dummy data**: Itinerary page works even without backend (graceful degradation)
 - **localStorage bridge**: Generated itinerary stored temporarily for page transition
 - **Inline editing**: Simple title/tagline editing vs. complex form-based editing (matches existing UI patterns)
-- **Suspense boundary**: Required by Next.js 15 for useSearchParams
+- **Suspense boundary**: Required by Next.js 15 for `useSearchParams()` — both `itinerary/page.tsx` and `build-trip/page.tsx` wrap content in `<Suspense>`
+
+### Why Lean Itinerary Output (name + key only)
+- LLM token cost scales with payload size
+- Full hotel/place data is already in Supabase — no need to duplicate in LLM context
+- Frontend hydrates on demand via `/api/explore/place/{key}` and `/api/explore/hotel/{hotel_id}`
+- Deterministic: the LLM only orders clusters; all data comes from DB
+
+### Why `key` Instead of `_key` in API Responses
+- Supabase's primary key column is literally named `_key`
+- Pydantic v2 treats fields starting with `_` as **private** and silently drops them from JSON output
+- We rename to `key` in API responses (backend translation: `{"name": x, "key": row["_key"]}`)
+- Database queries still use `.eq("_key", key)` — only the wire format differs
+
+### Why Thread-Safe Singleton for ItineraryGenerator
+- Embedding model load + Supabase data fetch + sentence-transformer encoding = ~5-10s cold start
+- FastAPI handles concurrent requests; naive lazy init could create multiple instances under load
+- Double-checked locking (`threading.Lock`) ensures exactly one init even under contention
+- After init, all operations are read-only → safe for concurrent access without further locks
+
+---
+
+## 10. Recent Refactors
+
+### Lean Itinerary Output Refactor
+**Problem:** Original transform returned full hotel/place/food details duplicated inline in the itinerary, bloating both LLM context and client payload.
+
+**Fix:** `trip_orchestrator.py` now emits only `{name, key}` per item. Hotels additionally carry `hotel_id`, `place_id`, `pricePerNight`, `rating` (kept because they're cheap and the itinerary UI shows them at-a-glance).
+
+**Added endpoints:**
+- `GET /api/explore/place/{key}` — searches Attractions → Food → Shops → Tourist Attractions by `_key`
+- `GET /api/explore/hotel/{hotel_id}` — joins `Hotel inner features` + `Hotel-outer-features`
+
+### Pydantic v2 Private Field Fix
+- Renamed `_key` → `key` in all Pydantic schemas (Hotel, ItineraryPlace, Souvenir, FoodSpot)
+- Renamed `_key` → `key` in frontend TypeScript types to match
+- The Supabase column remains `_key`; only the wire format changed
+
+### Thread-Safe Singleton
+- `get_generator()` in `itinerary_engine.py` now uses `threading.Lock()` with double-checked locking to prevent duplicate initialization under concurrent first-request load
+
+### Navigation Fixes
+- **Profile dropdown:** "Settings" and "Profile" were disabled placeholders → now links to `/profile` and `/build-trip`
+- **Footer:** 11 placeholder `#` links → real routes (`/destination/{id}`, `/explore`, `/build-trip`)
+- **Hero "Watch Demo":** no-op button → "See How It Works" scrolling to `#features`
+- **Homepage floating chat button:** no-op → `/build-trip?mode=chat`
+- **Build-trip page:** reads `?mode=chat` param to auto-select chat input method
+- **Itinerary CTA:** fake "Save" button (3s toast) → working "Share / Copy Link" with real API call
+
+### Critical Next.js 15 Fixes
+- Both `itinerary/page.tsx` and `build-trip/page.tsx` wrap their `useSearchParams()` consumers in `<Suspense>` boundaries — required for static rendering in Next.js 15
 
 ---
 
@@ -369,4 +421,4 @@ CREATE TABLE itinerary_shares (
 |--------|---------|--------|
 | `main` | Stable frontend baseline | Base |
 | `ft/backend-setup` | FastAPI backend with all services and APIs | Complete |
-| `ft/integration-frontend` | Frontend integration with backend + fixes | Complete |
+| `ft/integration-frontend` | Frontend integration + refactors + fixes + docs | Complete |

@@ -202,34 +202,16 @@ def _extract_amenities(hotel: dict) -> list[str]:
 @router.get("/place/{key}")
 async def get_place_by_key(key: str):
     """
-    Fetch full details of an attraction, food place, or shop by its _key.
-    Searches Attractions first, then Food, then Shops.
+    Fetch full details of an attraction, food place, or shop by its key.
+    The `key` path param corresponds to the Supabase `_key` column.
+    Searches Attractions first, then Food, then Shops, then Tourist Attractions.
     """
     supabase = get_supabase_admin()
     try:
-        # Try Attractions
-        res = supabase.table("Attractions").select("*").eq("_key", key).limit(1).execute()
-        if res.data:
-            row = res.data[0]
-            return {"table": "Attractions", **row}
-
-        # Try Food
-        res = supabase.table("Food").select("*").eq("_key", key).limit(1).execute()
-        if res.data:
-            row = res.data[0]
-            return {"table": "Food", **row}
-
-        # Try Shops
-        res = supabase.table("Shops").select("*").eq("_key", key).limit(1).execute()
-        if res.data:
-            row = res.data[0]
-            return {"table": "Shops", **row}
-
-        # Try Tourist Attractions
-        res = supabase.table("Tourist Attractions").select("*").eq("_key", key).limit(1).execute()
-        if res.data:
-            row = res.data[0]
-            return {"table": "Tourist Attractions", **row}
+        for table_name in ("Attractions", "Food", "Shops", "Tourist Attractions"):
+            res = supabase.table(table_name).select("*").eq("_key", key).limit(1).execute()
+            if res.data:
+                return {"table": table_name, **res.data[0]}
 
         raise NotFoundError(f"No place found with key '{key}'")
     except NotFoundError:
