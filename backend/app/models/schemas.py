@@ -71,6 +71,9 @@ class HotelReview(BaseModel):
 
 class Hotel(BaseModel):
     name: str
+    _key: str = ""
+    hotel_id: str = ""
+    place_id: str = ""
     image: str = ""
     rating: float = 0.0
     address: str = ""
@@ -84,12 +87,20 @@ class Hotel(BaseModel):
 # ---------- Itinerary ----------
 class ItineraryPlace(BaseModel):
     name: str
+    _key: str = ""           # Supabase PK — fetch details via /api/explore/place/{_key}
     image: str = ""
     description: str = ""
 
 
 class Souvenir(BaseModel):
     name: str
+    _key: str = ""           # Supabase PK
+    description: str = ""
+
+
+class FoodSpot(BaseModel):
+    name: str
+    _key: str = ""           # Supabase PK
     description: str = ""
 
 
@@ -103,7 +114,7 @@ class ItineraryDay(BaseModel):
     hotels: list[Hotel] = []
     places: list[ItineraryPlace] = []
     souvenirs: list[Souvenir] = []
-    food: list[dict] = []
+    food: list[FoodSpot] = []
 
 
 class CostItem(BaseModel):

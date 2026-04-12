@@ -224,6 +224,25 @@ export async function searchHotels(
   return apiFetch(`/api/explore/hotels?${params}`);
 }
 
+/**
+ * Fetch full details of a place (attraction / food / shop) by its _key.
+ * Use this to hydrate itinerary items that only contain {name, _key}.
+ */
+export async function getPlaceDetails(
+  key: string
+): Promise<Record<string, unknown>> {
+  return apiFetch(`/api/explore/place/${encodeURIComponent(key)}`);
+}
+
+/**
+ * Fetch full hotel details by hotel_id.
+ */
+export async function getHotelDetails(
+  hotelId: string
+): Promise<Record<string, unknown>> {
+  return apiFetch(`/api/explore/hotel/${encodeURIComponent(hotelId)}`);
+}
+
 // ---------------------------------------------------------------------------
 // Profile
 // ---------------------------------------------------------------------------

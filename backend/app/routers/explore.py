@@ -10,6 +10,7 @@ from app.services.supabase_data import (
     get_shops_by_district,
     get_cities,
 )
+from app.core.supabase_client import get_supabase_admin
 from app.core.exceptions import NotFoundError
 import logging
 
@@ -192,3 +193,92 @@ def _extract_amenities(hotel: dict) -> list[str]:
     if hotel.get("amenities_scenic_view"):
         amenities.append("scenic_view")
     return amenities
+
+
+# ---------------------------------------------------------------------------
+# Detail-by-key endpoints — used by frontend to hydrate itinerary items
+# ---------------------------------------------------------------------------
+
+@router.get("/place/{key}")
+async def get_place_by_key(key: str):
+    """
+    Fetch full details of an attraction, food place, or shop by its _key.
+    Searches Attractions first, then Food, then Shops.
+    """
+    supabase = get_supabase_admin()
+    try:
+        # Try Attractions
+        res = supabase.table("Attractions").select("*").eq("_key", key).limit(1).execute()
+        if res.data:
+            row = res.data[0]
+            return {"table": "Attractions", **row}
+
+        # Try Food
+        res = supabase.table("Food").select("*").eq("_key", key).limit(1).execute()
+        if res.data:
+            row = res.data[0]
+            return {"table": "Food", **row}
+
+        # Try Shops
+        res = supabase.table("Shops").select("*").eq("_key", key).limit(1).execute()
+        if res.data:
+            row = res.data[0]
+            return {"table": "Shops", **row}
+
+        # Try Tourist Attractions
+        res = supabase.table("Tourist Attractions").select("*").eq("_key", key).limit(1).execute()
+        if res.data:
+            row = res.data[0]
+            return {"table": "Tourist Attractions", **row}
+
+        raise NotFoundError(f"No place found with key '{key}'")
+    except NotFoundError:
+        raise
+    except Exception as e:
+        logger.error("Failed to fetch place '%s': %s", key, e)
+        raise NotFoundError(f"Error looking up place '{key}'")
+
+
+@router.get("/hotel/{hotel_id}")
+async def get_hotel_by_id(hotel_id: str):
+    """
+    Fetch full hotel details by hotel_id.
+    Joins inner features with outer features.
+    """
+    supabase = get_supabase_admin()
+    try:
+        inner = (
+            supabase.table("Hotel inner features")
+            .select("*")
+            .eq("hotel_id", hotel_id)
+            .limit(1)
+            .execute()
+        )
+        if not inner.data:
+            raise NotFoundError(f"No hotel found with id '{hotel_id}'")
+
+        hotel = inner.data[0]
+        place_id = hotel.get("place id") or hotel.get("place_id")
+
+        # Enrich with outer features
+        if place_id:
+            try:
+                outer = (
+                    supabase.table("Hotel-outer-features")
+                    .select("*")
+                    .eq("place_id", place_id)
+                    .limit(1)
+                    .execute()
+                )
+                if outer.data:
+                    hotel = {**hotel, **outer.data[0]}
+            except Exception:
+                pass
+
+        hotel["amenities"] = _extract_amenities(hotel)
+        return hotel
+    except NotFoundError:
+        raise
+    except Exception as e:
+        logger.error("Failed to fetch hotel '%s': %s", hotel_id, e)
+        raise NotFoundError(f"Error looking up hotel '{hotel_id}'")
