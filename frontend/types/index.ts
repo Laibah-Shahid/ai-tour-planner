@@ -86,6 +86,11 @@ export interface Souvenir {
   description: string;
 }
 
+export interface FoodSpot {
+  name: string;
+  description?: string;
+}
+
 export interface ItineraryDay {
   id: number;
   title: string;
@@ -96,6 +101,7 @@ export interface ItineraryDay {
   hotels: Hotel[];
   places: ItineraryPlace[];
   souvenirs: Souvenir[];
+  food?: FoodSpot[];
 }
 
 export interface CostItem {

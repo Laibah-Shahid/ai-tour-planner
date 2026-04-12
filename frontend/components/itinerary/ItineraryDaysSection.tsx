@@ -7,9 +7,15 @@ import type { Hotel, ItineraryDay } from "@/types";
 
 interface ItineraryDaysSectionProps {
   days: ItineraryDay[];
+  editing?: boolean;
+  onEditDay?: (dayId: number, field: keyof ItineraryDay, value: string) => void;
 }
 
-export default function ItineraryDaysSection({ days }: ItineraryDaysSectionProps) {
+export default function ItineraryDaysSection({
+  days,
+  editing = false,
+  onEditDay,
+}: ItineraryDaysSectionProps) {
   const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
 
   return (
@@ -33,6 +39,8 @@ export default function ItineraryDaysSection({ days }: ItineraryDaysSectionProps
                 day={day}
                 defaultOpen={index === 0}
                 onHotelClick={setSelectedHotel}
+                editing={editing}
+                onEditDay={onEditDay}
               />
             </div>
           </div>

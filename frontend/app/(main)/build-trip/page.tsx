@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import TripChatbot from "@/components/build-trip/TripChatbot";
-import { SIMULATED_DELAY, FORM_REQUIRED_FIELDS } from "@/config/site";
+import { FORM_REQUIRED_FIELDS } from "@/config/site";
 import type { GatheredTripDetails } from "@/types";
+import { generateItinerary, generateFromChat } from "@/lib/api";
 
 // Local date helpers to avoid timezone issues
 const parseLocalDate = (iso: string) => {
@@ -202,16 +203,51 @@ export default function BuildTripPage() {
     if (!isComplete || loading) return;
     setLoading(true);
     try {
-   await new Promise((resolve) => setTimeout(resolve, SIMULATED_DELAY));
-   if (inputMethod === "form") {
-     localStorage.setItem("tripDetails", JSON.stringify(formData));
-   } else if (chatDetails) {
-     localStorage.setItem("tripDetails", JSON.stringify(chatDetails));
-   }
-   router.push("/itinerary");
- } finally {
-   setLoading(false);
- }
+      if (inputMethod === "form") {
+        const payload = {
+          source: formData.source,
+          destinations: formData.destination,
+          adults: Number(formData.adults) || 1,
+          kids: Number(formData.kids) || 0,
+          budget: Number(formData.budget) || 50000,
+          start_date: formData.start_date,
+          end_date: formData.end_date,
+          days: Number(formData.days) || 1,
+          transport_type: formData.transport_type || "car",
+          spots: formData.spots,
+          notes: formData.notes,
+          include_food: true,
+          include_souvenirs: true,
+        };
+        const result = await generateItinerary(payload);
+        localStorage.setItem("itineraryResult", JSON.stringify(result));
+        router.push(`/itinerary?id=${result.id}`);
+      } else if (chatDetails) {
+        const chatPayload = {
+          starting_city: chatDetails.source,
+          adults: Number(chatDetails.adults) || 1,
+          kids: Number(chatDetails.kids) || 0,
+          food: true,
+          souvenir_shopping: true,
+          budget: { amount: Number(chatDetails.budget) || 50000, currency: "PKR" },
+          total_start_date: chatDetails.start_date,
+          total_end_date: chatDetails.end_date,
+          segments: chatDetails.destination.map((dest) => ({
+            city: dest,
+            number_of_days: Math.max(1, Math.floor(Number(chatDetails.days) / chatDetails.destination.length)),
+            preferences: chatDetails.spots,
+          })),
+        };
+        const result = await generateFromChat(chatPayload);
+        localStorage.setItem("itineraryResult", JSON.stringify(result));
+        router.push(`/itinerary?id=${result.id}`);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Generation failed. Please try again.";
+      alert(message);
+    } finally {
+      setLoading(false);
+    }
   }, [isComplete, loading, router, inputMethod, formData, chatDetails]);
 
   return (

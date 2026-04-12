@@ -13,57 +13,11 @@ import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  CHATBOT_TYPING_DELAY,
   CHATBOT_WELCOME_MESSAGE,
-  CHATBOT_REQUIRED_FIELDS,
-  CHATBOT_FIELD_PROMPTS,
   CHATBOT_FIELD_LABELS,
 } from "@/config/site";
+import { sendChatMessage } from "@/lib/api";
 import type { ChatMessage, GatheredTripDetails } from "@/types";
-
-// ── Field extraction ──────────────────────────────────────────────────────────
-
-function extractFields(text: string): Partial<GatheredTripDetails> {
-  const result: Partial<GatheredTripDetails> = {};
-
-  const peopleMatch =
-    text.match(/(\d+)\s*(?:people|persons?|friends?|travelers?|pax|of us)/i) ??
-    text.match(/(?:we are|there are|group of|party of)\s*(\d+)/i);
-  if (peopleMatch) result.people = peopleMatch[1];
-
-  const budgetMatch =
-    text.match(/(?:PKR|Rs\.?|rupees?)\s*([\d,]+)/i) ??
-    text.match(/([\d,]+)\s*(?:PKR|Rs\.?|rupees?)/i) ??
-    text.match(/budget\s+(?:is|of|around)?\s*([\d,]+)/i);
-  if (budgetMatch) result.budget = budgetMatch[1].replace(/,/g, "");
-
-  const sourceMatch = text.match(
-    /(?:from|starting from|departing from|leaving from|based in)\s+([A-Za-z]+(?:\s[A-Za-z]+)?)/i
-  );
-  if (sourceMatch) result.source = sourceMatch[1];
-
-  const destMatch = text.match(
-    /(?:visit|going to|travel to|trip to|heading to|destination is|want to go to|planning to visit)\s+([A-Za-z]+(?:\s[A-Za-z]+)?)/i
-  );
-  if (destMatch) result.destination = destMatch[1];
-  
-  const spotsMatch = text.match(
-    /(?:see|visit|like to see|want to see|check out)\s+(.+?)(?:\.|$)/i
-  );
-  if (spotsMatch && spotsMatch[1].length > 3) result.spots = spotsMatch[1].trim();
-
-  return result;
-}
-
-function getNextMissingField(
-  details: Partial<GatheredTripDetails>
-): string | null {
-  return (
-    (CHATBOT_REQUIRED_FIELDS as readonly string[]).find(
-      (f) => !details[f as keyof GatheredTripDetails]
-    ) ?? null
-  );
-}
 
 // ── TypingIndicator ───────────────────────────────────────────────────────────
 
@@ -139,6 +93,18 @@ const DetailsMiniCard = memo(function DetailsMiniCard({
 }: {
   details: GatheredTripDetails;
 }) {
+  const displayFields: [string, string, string][] = [
+    ["destination", "Destinations", Array.isArray(details.destination) ? details.destination.join(", ") : details.destination],
+    ["source", "Starting Point", details.source],
+    ["adults", "Adults", details.adults],
+    ["kids", "Kids", details.kids],
+    ["budget", "Budget (PKR)", details.budget],
+    ["days", "Days", details.days],
+    ["start_date", "Start Date", details.start_date],
+    ["end_date", "End Date", details.end_date],
+    ["transport_type", "Transport", details.transport_type],
+  ];
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -150,10 +116,7 @@ const DetailsMiniCard = memo(function DetailsMiniCard({
         Trip details confirmed
       </p>
       <div className="grid grid-cols-2 gap-2">
-        {(
-          Object.entries(CHATBOT_FIELD_LABELS) as [string, string][]
-        ).map(([key, label]) => {
-          const value = details[key as keyof GatheredTripDetails];
+        {displayFields.map(([key, label, value]) => {
           if (!value) return null;
           return (
             <div
@@ -191,30 +154,19 @@ export default function TripChatbot({ onDetailsGathered }: TripChatbotProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [gatheredDetails, setGatheredDetails] = useState<
-    Partial<GatheredTripDetails>
-  >({});
   const [confirmedDetails, setConfirmedDetails] =
     useState<GatheredTripDetails | null>(null);
+  const [sessionId] = useState(() => `chat-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  // Holds the pending setTimeout so we can clear it on unmount
-  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-scroll to bottom whenever messages or typing state changes
+  // Auto-scroll
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isTyping, confirmedDetails]);
-
-  // Cleanup pending timer on unmount
-  useEffect(() => {
-    return () => {
-      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-    };
-  }, []);
 
   const addBotMessage = useCallback((content: string) => {
     setMessages((prev) => [
@@ -228,7 +180,7 @@ export default function TripChatbot({ onDetailsGathered }: TripChatbotProps) {
     ]);
   }, []);
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const text = input.trim();
     if (!text || isTyping || confirmedDetails) return;
 
@@ -241,43 +193,44 @@ export default function TripChatbot({ onDetailsGathered }: TripChatbotProps) {
 
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
-
-    const extracted = extractFields(text);
-    const updated = { ...gatheredDetails, ...extracted };
-    setGatheredDetails(updated);
-
     setIsTyping(true);
 
-    typingTimerRef.current = setTimeout(() => {
-      setIsTyping(false);
+    try {
+      const response = await sendChatMessage({
+        message: text,
+        session_id: sessionId,
+      });
 
-      const nextField = getNextMissingField(updated);
-      if (nextField) {
-        addBotMessage(CHATBOT_FIELD_PROMPTS[nextField]);
-      } else {
-        const complete: GatheredTripDetails = {
-          destination: updated.destination ?? "",
-          source: updated.source ?? "",
-          people: updated.people ?? "",
-          budget: updated.budget ?? "",
-          spots: updated.spots ?? "",
-          notes: updated.notes ?? "",
+      setIsTyping(false);
+      addBotMessage(response.reply);
+
+      if (response.trip_complete && response.extracted_details) {
+        const details = response.extracted_details;
+        const segments = (details.segments as { city: string; number_of_days?: number; preferences?: string[]; transport_from_previous?: string }[]) || [];
+
+        const gathered: GatheredTripDetails = {
+          destination: segments.map((s) => s.city),
+          source: (details.starting_city as string) || "",
+          budget: String((details.budget as { amount?: number })?.amount || ""),
+          spots: segments.flatMap((s) => s.preferences || []),
+          notes: "",
+          start_date: (details.total_start_date as string) || "",
+          end_date: (details.total_end_date as string) || "",
+          days: String(segments.reduce((sum: number, s) => sum + (s.number_of_days || 0), 0)),
+          kids: String(details.kids || "0"),
+          adults: String(details.adults || "1"),
+          transport_type: segments[0]?.transport_from_previous || "car",
         };
-        setConfirmedDetails(complete);
-        addBotMessage(
-          "I have all the details I need! Here's a summary of your trip. Click Generate My Itinerary to create your personalized plan."
-        );
-        onDetailsGathered(complete);
+
+        setConfirmedDetails(gathered);
+        onDetailsGathered(gathered);
       }
-    }, CHATBOT_TYPING_DELAY);
-  }, [
-    input,
-    isTyping,
-    confirmedDetails,
-    gatheredDetails,
-    addBotMessage,
-    onDetailsGathered,
-  ]);
+    } catch (err) {
+      setIsTyping(false);
+      addBotMessage("Sorry, I encountered an error. Please try again.");
+      console.error("Chat error:", err);
+    }
+  }, [input, isTyping, confirmedDetails, sessionId, addBotMessage, onDetailsGathered]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -295,8 +248,8 @@ export default function TripChatbot({ onDetailsGathered }: TripChatbotProps) {
 
   const inputPlaceholder = useMemo(() => {
     if (confirmedDetails) return "All details gathered!";
-    if (isTyping) return "AI is typing...";
-    return "Tell me your plan…";
+    if (isTyping) return "AI is thinking...";
+    return "Tell me your plan...";
   }, [confirmedDetails, isTyping]);
 
   const isSendDisabled = !input.trim() || isInputDisabled;
