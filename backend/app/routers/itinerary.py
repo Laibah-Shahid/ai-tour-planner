@@ -127,7 +127,7 @@ async def share_itinerary(
     share_id = share["share_id"]
     return {
         "share_id": share_id,
-        "share_url": f"/itinerary/shared/{share_id}",
+        "share_url": f"/itinerary?shared={share_id}",
     }
 
 
