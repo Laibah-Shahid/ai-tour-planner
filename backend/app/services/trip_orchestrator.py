@@ -82,7 +82,12 @@ def generate_from_chat(trip_json: dict) -> dict:
     for seg in segments:
         city = seg.get("city", "")
         city_days = seg.get("number_of_days", 2)
-        prefs = seg.get("preferences", ["sightseeing"])
+        raw_prefs = seg.get("preferences", [])
+        prefs = [
+            p if isinstance(p, str) else (p.get("name") or p.get("type") or "")
+            for p in raw_prefs
+        ]
+        prefs = [p for p in prefs if p] or ["sightseeing"]
         result = _run_segment(graph, city, city_days, prefs, global_food, global_souvenirs)
         raw = json.loads(result.get("draft_itinerary", "{}"))
         all_segments.append({"city": city, "raw": raw, "result": result})

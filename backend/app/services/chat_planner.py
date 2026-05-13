@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from app.core.config import get_settings
@@ -195,8 +195,6 @@ class TravelPlanner:
         if allocated:
             if allocated > total_trip_days:
                 errors.append(f"Total allocated city days ({allocated}) exceed trip duration ({total_trip_days}).")
-            elif total_trip_days - allocated > 1:
-                errors.append(f"There are {total_trip_days - allocated} unplanned days in the trip.")
         return errors
 
     def validate_business_rules(self) -> List[str]:
@@ -248,7 +246,12 @@ You must:
 
 7. Date Rules: Store all dates in YYYY-MM-DD format.
 
-8. Trip Completion: Mark trip_complete = true ONLY when all required fields are filled.
+8. Trip Completion: Mark trip_complete = true ONLY when ALL of the following are filled:
+    - starting_city
+    - adults (>= 1) and kids (>= 0)
+    - budget amount
+    - total_start_date and total_end_date
+    - at least one segment with city and number_of_days
 
 Current structured travel state:
 __STATE_JSON__
@@ -263,10 +266,13 @@ Return JSON only. No explanations outside JSON.
 """
         system_prompt = system_prompt.replace("__STATE_JSON__", current_state_json)
 
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_input),
-        ]
+        messages = [SystemMessage(content=system_prompt)]
+        for m in self.messages:
+            if m["role"] == "user":
+                messages.append(HumanMessage(content=m["content"]))
+            else:
+                messages.append(AIMessage(content=m["content"]))
+        messages.append(HumanMessage(content=user_input))
 
         try:
             response = self.llm.invoke(messages)
@@ -294,6 +300,8 @@ Return JSON only. No explanations outside JSON.
             return "Something went wrong. Please try again.", False, None
 
         self.merge_state(result.get("updated_travel_info", {}))
+        self.messages.append({"role": "user", "content": user_input})
+        self.messages.append({"role": "assistant", "content": result.get("assistant_message", "")})
 
         is_complete = result.get("trip_complete", False)
         errors = self.validate() if is_complete else []
