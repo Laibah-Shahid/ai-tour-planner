@@ -112,6 +112,7 @@ def _run_segment(graph, city: str, days: int, prefs: list, food: bool, souvenirs
         "include_food": food,
         "include_souvenirs": souvenirs,
         "retrieved_attractions": [],
+        "all_city_attractions": [],
         "retrieval_metadata": {},
         "place_coordinates": {},
         "draft_itinerary": None,
@@ -209,11 +210,12 @@ def _build_itinerary_data(
                 "food": food,
             })
 
-        # Build alternative pool: retrieved items NOT used in the final itinerary
-        all_retrieved = result.get("retrieved_attractions", [])
+        # Build alternative pool from ALL city attractions (not just top-K pipeline subset).
+        # This ensures alternatives are available even when the city has few attractions.
+        all_city = result.get("all_city_attractions") or result.get("retrieved_attractions", [])
         alt_places = [
             {"name": a["_key"], "key": a["_key"]}
-            for a in all_retrieved
+            for a in all_city
             if a.get("_key") and a["_key"] not in used_place_keys
         ]
 
@@ -243,11 +245,18 @@ def _build_itinerary_data(
         ]
 
         alternative_pool[city_key] = {
-            "places": alt_places[:10],
-            "hotels": alt_hotels[:8],
-            "food": alt_food[:6],
-            "souvenirs": alt_souvenirs[:6],
+            "places": alt_places,
+            "hotels": alt_hotels,
+            "food": alt_food,
+            "souvenirs": alt_souvenirs,
         }
+        logger.info(
+            "Alternative pool for '%s': places=%d, hotels=%d, food=%d, souvenirs=%d "
+            "(city_total=%d, pipeline=%d, used_places=%d)",
+            city_key,
+            len(alt_places), len(alt_hotels), len(alt_food), len(alt_souvenirs),
+            len(all_city), len(result.get("retrieved_attractions", [])), len(used_place_keys),
+        )
 
     dest_label = " & ".join(d.title() for d in destinations)
     effective_budget = budget or int(total_budget_needed * total_days) or 50000

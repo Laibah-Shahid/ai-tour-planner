@@ -135,6 +135,7 @@ class ItineraryData(BaseModel):
     days: list[ItineraryDay]
     costs: list[CostItem] = []
     tips: list[TravelTip] = []
+    alternative_pool: dict = Field(default_factory=dict)
 
 
 class ItineraryResponse(BaseModel):

@@ -194,8 +194,8 @@ export default function DayCard({
                       {day.places.map((place, i) => (
                         <div key={i} className="relative group">
                           <PlaceCard place={place} />
-                          {editing && cityPool && cityPool.places.length > 0 && (
-                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {editing && (
+                            <div className="absolute top-2 right-2">
                               <SwapButton onClick={() => openSwap("places", i)} />
                             </div>
                           )}
@@ -214,9 +214,9 @@ export default function DayCard({
                     </h4>
                     <div className="flex flex-wrap gap-2">
                       {foodItems.map((item: { name: string; description?: string }, i: number) => (
-                        <div key={i} className="relative group flex items-center gap-1 bg-orange-50 border border-orange-100 rounded-xl px-4 py-2">
+                        <div key={i} className="flex items-center gap-1 bg-orange-50 border border-orange-100 rounded-xl px-4 py-2">
                           <p className="text-sm font-medium text-orange-800">{item.name}</p>
-                          {editing && cityPool && cityPool.food.length > 0 && (
+                          {editing && (
                             <SwapButton onClick={() => openSwap("food", i)} />
                           )}
                         </div>
@@ -234,10 +234,10 @@ export default function DayCard({
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {day.hotels.map((hotel, i) => (
-                        <div key={i} className="relative group">
+                        <div key={i} className="relative">
                           <HotelCard hotel={hotel} onClick={onHotelClick ?? (() => {})} />
-                          {editing && cityPool && cityPool.hotels.length > 0 && (
-                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {editing && (
+                            <div className="absolute top-2 right-2">
                               <SwapButton onClick={() => openSwap("hotels", i)} />
                             </div>
                           )}
@@ -256,14 +256,14 @@ export default function DayCard({
                     </h4>
                     <div className="flex flex-wrap gap-2">
                       {day.souvenirs.map((souvenir, i) => (
-                        <div key={i} className="relative group flex items-center gap-1 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2">
+                        <div key={i} className="flex items-center gap-1 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2">
                           <div>
                             <p className="text-sm font-medium text-emerald-800">{souvenir.name}</p>
                             {souvenir.description && (
                               <p className="text-xs text-emerald-600 mt-0.5">{souvenir.description}</p>
                             )}
                           </div>
-                          {editing && cityPool && cityPool.souvenirs.length > 0 && (
+                          {editing && (
                             <SwapButton onClick={() => openSwap("souvenirs", i)} />
                           )}
                         </div>

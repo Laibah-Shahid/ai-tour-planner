@@ -30,6 +30,19 @@ from app.services.supabase_data import (
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Retrieval & selection constants
+# Retrieve FACTOR × what the itinerary needs so alternatives are always available.
+# ---------------------------------------------------------------------------
+ATTRACTIONS_PER_DAY       = 3   # shown in itinerary per day
+ATTRACTIONS_EXTRA_FACTOR  = 3   # retrieve this many × per day (2× become alternatives)
+FOOD_IN_ITINERARY         = 2   # food spots shown per day
+FOOD_POOL_PER_CLUSTER     = 6   # fetched per cluster (4 become alternatives)
+SOUVENIR_IN_ITINERARY     = 1   # souvenir shops shown per day
+SOUVENIR_POOL_PER_CLUSTER = 4   # fetched per cluster (3 become alternatives)
+HOTEL_IN_ITINERARY        = 2   # hotels shown per day
+HOTEL_POOL_PER_CLUSTER    = 6   # fetched per cluster (4 become alternatives)
+
 
 # ---------------------------------------------------------------------------
 # LLM factory
@@ -201,7 +214,8 @@ class ItineraryState(TypedDict):
     query_parse_error: Optional[str]
     include_food: bool
     include_souvenirs: bool
-    retrieved_attractions: List[Dict[str, Any]]
+    retrieved_attractions: List[Dict[str, Any]]      # top-K used for clustering & itinerary
+    all_city_attractions: List[Dict[str, Any]]       # ALL attractions for the city (for alternatives)
     retrieval_metadata: Dict[str, Any]
     place_coordinates: Dict[str, Dict[str, float]]
     draft_itinerary: Optional[str]
@@ -277,21 +291,33 @@ class ItineraryGenerator:
         top_idx = np.argsort(sims)[::-1]
         location_str = (state.get("parsed_location") or "").strip().lower()
 
-        filtered = []
+        retrieve_limit = state.get("parsed_days", 3) * ATTRACTIONS_PER_DAY * ATTRACTIONS_EXTRA_FACTOR
+
+        # Collect ALL city attractions ordered by similarity — don't stop at retrieve_limit.
+        # The top retrieve_limit go into the itinerary pipeline; ALL of them form the pool
+        # so the swap bar always has options even when the city has few attractions.
+        all_city: List[Dict[str, Any]] = []
         for i in top_idx:
             row = self.df_attractions.iloc[i]
             if location_str and row["district"] != location_str:
                 continue
-            filtered.append({**row.to_dict(), "similarity_score": float(sims[i])})
-            if len(filtered) >= state.get("parsed_days", 3) * 4:
-                break
+            all_city.append({**row.to_dict(), "similarity_score": float(sims[i])})
+
+        # Top-K go into clustering / itinerary generation
+        pipeline_attractions = all_city[:retrieve_limit]
+
+        logger.info(
+            "Semantic search for '%s': total_city=%d, pipeline=%d (limit=%d)",
+            location_str, len(all_city), len(pipeline_attractions), retrieve_limit,
+        )
 
         return {
             **state,
-            "retrieved_attractions": filtered,
+            "retrieved_attractions": pipeline_attractions,
+            "all_city_attractions": all_city,
             "retrieval_metadata": {
-                "total_results": len(filtered),
-                "avg_score": float(np.mean([a["similarity_score"] for a in filtered])) if filtered else 0.0,
+                "total_results": len(pipeline_attractions),
+                "avg_score": float(np.mean([a["similarity_score"] for a in pipeline_attractions])) if pipeline_attractions else 0.0,
             },
         }
 
@@ -325,14 +351,14 @@ class ItineraryGenerator:
             cluster_data: Dict[str, Any] = {}
 
             cluster_data["food"] = (
-                nearest_from_pool(anchors, self.df_food, top_n=3, max_radius_km=40.0)
+                nearest_from_pool(anchors, self.df_food, top_n=FOOD_POOL_PER_CLUSTER, max_radius_km=40.0)
                 if state.get("include_food") else []
             )
             cluster_data["souvenirs"] = (
-                nearest_from_pool(anchors, self.df_souvenirs, top_n=2, max_radius_km=40.0)
+                nearest_from_pool(anchors, self.df_souvenirs, top_n=SOUVENIR_POOL_PER_CLUSTER, max_radius_km=40.0)
                 if state.get("include_souvenirs") else []
             )
-            lodging_candidates = nearest_from_pool(anchors, self.df_lodging, top_n=5, max_radius_km=60.0)
+            lodging_candidates = nearest_from_pool(anchors, self.df_lodging, top_n=HOTEL_POOL_PER_CLUSTER, max_radius_km=60.0)
             if lodging_candidates:
                 lodging_candidates.sort(key=lambda x: float(x.get("price", float("inf"))))
                 cluster_data["lodging"] = lodging_candidates
@@ -376,19 +402,33 @@ Rules: Use each cluster exactly once. Return raw JSON only."""
         except Exception:
             cluster_order = cluster_ids
 
+        # Similarity lookup so we pick the highest-scoring attractions per cluster
+        sim_scores: Dict[str, float] = {
+            str(a.get("_key", "")): a.get("similarity_score", 0.0)
+            for a in state.get("retrieved_attractions", [])
+        }
+
         final_output = {}
         for day_index, cluster_id in enumerate(cluster_order):
-            attractions = clusters.get(cluster_id, [])
+            all_cluster_attractions = clusters.get(cluster_id, [])
             optional = clustered_optional.get(cluster_id, {})
             food = optional.get("food", [])
             souvenirs = optional.get("souvenirs", [])
             lodging = optional.get("lodging", [])
 
+            # Pick best attractions by similarity score; rest remain as alternatives
+            sorted_attractions = sorted(
+                all_cluster_attractions,
+                key=lambda x: sim_scores.get(x, 0.0),
+                reverse=True,
+            )
+            itinerary_attractions = sorted_attractions[:ATTRACTIONS_PER_DAY]
+
             final_output[f"day_{day_index + 1}"] = {
-                "attractions": attractions,
-                "food": [f.get("_key") for f in food if f.get("_key")],
-                "souvenir_shops": [s.get("_key") for s in souvenirs if s.get("_key")],
-                "lodging": [l.get("_key") for l in lodging if l.get("_key")][:2],
+                "attractions": itinerary_attractions,
+                "food": [f.get("_key") for f in food[:FOOD_IN_ITINERARY] if f.get("_key")],
+                "souvenir_shops": [s.get("_key") for s in souvenirs[:SOUVENIR_IN_ITINERARY] if s.get("_key")],
+                "lodging": [l.get("_key") for l in lodging[:HOTEL_IN_ITINERARY] if l.get("_key")],
             }
 
         # Anti-hallucination validation
