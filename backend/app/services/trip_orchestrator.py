@@ -133,13 +133,16 @@ def _build_itinerary_data(
     Build the final ItineraryData JSON from engine segments.
     Every place/hotel/food/souvenir is returned as {name, _key}
     so the frontend can fetch full details from Supabase by _key.
+    Also builds alternative_pool per city from retrieved-but-unused items.
     """
     days_list = []
     day_counter = 0
     total_budget_needed = 0.0
+    alternative_pool: dict = {}
 
     for seg in segments:
         city = seg["city"]
+        city_key = city.lower()
         raw = seg["raw"]
         result = seg["result"]
         total_budget_needed += result.get("budget_needed", 0)
@@ -149,6 +152,12 @@ def _build_itinerary_data(
         all_food = _collect_optional(result, "food")
         all_souvenirs = _collect_optional(result, "souvenirs")
 
+        # Track what ends up in the final itinerary for this city
+        used_place_keys: set[str] = set()
+        used_hotel_keys: set[str] = set()
+        used_food_keys: set[str] = set()
+        used_souvenir_keys: set[str] = set()
+
         for day_key in sorted(raw.keys()):
             day_data = raw[day_key]
             day_counter += 1
@@ -157,6 +166,7 @@ def _build_itinerary_data(
             places = []
             for attr_name in day_data.get("attractions", []):
                 places.append({"name": attr_name, "key": attr_name})
+                used_place_keys.add(attr_name)
 
             # Hotels: name + key + hotel_id + price + rating
             hotels = []
@@ -170,18 +180,21 @@ def _build_itinerary_data(
                     "pricePerNight": int(info.get("price", 0)),
                     "rating": float(info.get("rating", 0)),
                 })
+                used_hotel_keys.add(lname)
 
             # Food: name + key
             food = [
                 {"name": f, "key": f}
                 for f in day_data.get("food", [])
             ]
+            used_food_keys.update(day_data.get("food", []))
 
             # Souvenirs: name + key
             souvenirs = [
                 {"name": s, "key": s}
                 for s in day_data.get("souvenir_shops", [])
             ]
+            used_souvenir_keys.update(day_data.get("souvenir_shops", []))
 
             days_list.append({
                 "id": day_counter,
@@ -195,6 +208,46 @@ def _build_itinerary_data(
                 "souvenirs": souvenirs,
                 "food": food,
             })
+
+        # Build alternative pool: retrieved items NOT used in the final itinerary
+        all_retrieved = result.get("retrieved_attractions", [])
+        alt_places = [
+            {"name": a["_key"], "key": a["_key"]}
+            for a in all_retrieved
+            if a.get("_key") and a["_key"] not in used_place_keys
+        ]
+
+        alt_hotels = [
+            {
+                "name": h["_key"],
+                "key": h["_key"],
+                "hotel_id": h.get("hotel_id", ""),
+                "place_id": h.get("place_id", h.get("place_id_ref", "")),
+                "pricePerNight": int(h.get("price", 0)),
+                "rating": float(h.get("rating", 0)),
+            }
+            for h in all_lodging
+            if h.get("_key") and h["_key"] not in used_hotel_keys
+        ]
+
+        alt_food = [
+            {"name": f["_key"], "key": f["_key"]}
+            for f in all_food
+            if f.get("_key") and f["_key"] not in used_food_keys
+        ]
+
+        alt_souvenirs = [
+            {"name": s["_key"], "key": s["_key"]}
+            for s in all_souvenirs
+            if s.get("_key") and s["_key"] not in used_souvenir_keys
+        ]
+
+        alternative_pool[city_key] = {
+            "places": alt_places[:10],
+            "hotels": alt_hotels[:8],
+            "food": alt_food[:6],
+            "souvenirs": alt_souvenirs[:6],
+        }
 
     dest_label = " & ".join(d.title() for d in destinations)
     effective_budget = budget or int(total_budget_needed * total_days) or 50000
@@ -211,6 +264,7 @@ def _build_itinerary_data(
         "bestSeason": "",
         "totalCost": effective_budget,
         "days": days_list,
+        "alternative_pool": alternative_pool,
         "costs": costs,
         "tips": [
             {"id": 1, "text": "Carry cash as many places don't accept cards."},

@@ -8,6 +8,7 @@ import {
   MapPin,
   Sun,
   ArrowLeft,
+  ArrowLeftRight,
   Share2,
   Check,
   Copy,
@@ -22,7 +23,13 @@ import CostBreakdown from "@/components/itinerary/CostBreakdown";
 import TravelTips from "@/components/itinerary/TravelTips";
 import ItineraryCTA from "@/components/itinerary/ItineraryCTA";
 import { dummyItinerary } from "@/data/itinerary";
-import type { ItineraryData, ItineraryDay } from "@/types";
+import type {
+  ItineraryData,
+  ItineraryDay,
+  AlternativeHotel,
+  AlternativePlace,
+} from "@/types";
+import type { SwapCategory } from "@/components/itinerary/SwapDrawer";
 import {
   getItinerary,
   getSharedItinerary,
@@ -221,6 +228,59 @@ function ItineraryPageContent() {
     [editData]
   );
 
+  // Swap an item within a day with an alternative
+  const handleSwapItem = useCallback(
+    (
+      dayId: number,
+      category: SwapCategory,
+      index: number,
+      item: AlternativePlace | AlternativeHotel
+    ) => {
+      if (!editData) return;
+      setEditData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          days: prev.days.map((d) => {
+            if (d.id !== dayId) return d;
+            if (category === "hotels") {
+              const alt = item as AlternativeHotel;
+              const hotels = [...d.hotels];
+              hotels[index] = {
+                name: alt.name,
+                key: alt.key,
+                hotel_id: alt.hotel_id,
+                place_id: alt.place_id,
+                pricePerNight: alt.pricePerNight,
+                rating: alt.rating,
+                image: "",
+                address: "",
+              };
+              return { ...d, hotels };
+            }
+            if (category === "places") {
+              const places = [...d.places];
+              places[index] = { name: item.name, key: item.key, image: "", description: "" };
+              return { ...d, places };
+            }
+            if (category === "food") {
+              const food = [...(d.food ?? [])];
+              food[index] = { name: item.name, key: item.key };
+              return { ...d, food };
+            }
+            if (category === "souvenirs") {
+              const souvenirs = [...d.souvenirs];
+              souvenirs[index] = { name: item.name, key: item.key };
+              return { ...d, souvenirs };
+            }
+            return d;
+          }),
+        };
+      });
+    },
+    [editData]
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -409,8 +469,10 @@ function ItineraryPageContent() {
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
             <Pencil className="w-5 h-5 text-blue-600" />
             <p className="text-sm text-blue-700">
-              You are editing this itinerary. Click on day titles and taglines
-              to modify them. Click <strong>Save</strong> when done.
+              You are editing this itinerary. Edit titles and taglines inline.
+              Hover over any place, hotel, food or souvenir and click{" "}
+              <ArrowLeftRight className="w-3 h-3 inline text-blue-600" /> to swap it
+              with an alternative. Click <strong>Save</strong> when done.
             </p>
           </div>
         )}
@@ -424,6 +486,8 @@ function ItineraryPageContent() {
             days={days}
             editing={editing}
             onEditDay={handleEditDay}
+            alternativePool={displayData.alternative_pool}
+            onSwapItem={handleSwapItem}
           />
         </section>
 

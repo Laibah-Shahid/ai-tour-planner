@@ -193,6 +193,27 @@ export interface GatheredTripDetails {
   transport_type: string; // e.g., car, bus, train
 }
 
+export interface AlternativePlace {
+  name: string;
+  key: string;
+}
+
+export interface AlternativeHotel {
+  name: string;
+  key: string;
+  hotel_id: string;
+  place_id: string;
+  pricePerNight: number;
+  rating: number;
+}
+
+export interface AlternativeCityPool {
+  places: AlternativePlace[];
+  hotels: AlternativeHotel[];
+  food: AlternativePlace[];
+  souvenirs: AlternativePlace[];
+}
+
 export interface ItineraryData {
   destination: string;
   totalDays: number;
@@ -201,4 +222,5 @@ export interface ItineraryData {
   days: ItineraryDay[];
   costs: CostItem[];
   tips: TravelTip[];
+  alternative_pool?: Record<string, AlternativeCityPool>;
 }
