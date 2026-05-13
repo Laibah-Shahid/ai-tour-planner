@@ -73,17 +73,28 @@ export interface Hotel {
   rooms?: HotelRoom[];
   reviews?: HotelReview[];
   amenities?: string[];
+  key?: string;        // DB key (Supabase _key column)
+  hotel_id?: string;   // Use with /api/explore/hotel/{hotel_id}
+  place_id?: string;
 }
 
 export interface ItineraryPlace {
   name: string;
   image: string;
   description: string;
+  key?: string;        // DB primary key — use with /api/explore/place/{key}
 }
 
 export interface Souvenir {
   name: string;
   description: string;
+  key?: string;        // DB primary key — use with /api/explore/place/{key}
+}
+
+export interface FoodSpot {
+  name: string;
+  description?: string;
+  key?: string;        // DB primary key — use with /api/explore/place/{key}
 }
 
 export interface ItineraryDay {
@@ -96,6 +107,7 @@ export interface ItineraryDay {
   hotels: Hotel[];
   places: ItineraryPlace[];
   souvenirs: Souvenir[];
+  food?: FoodSpot[];
 }
 
 export interface CostItem {
@@ -181,6 +193,27 @@ export interface GatheredTripDetails {
   transport_type: string; // e.g., car, bus, train
 }
 
+export interface AlternativePlace {
+  name: string;
+  key: string;
+}
+
+export interface AlternativeHotel {
+  name: string;
+  key: string;
+  hotel_id: string;
+  place_id: string;
+  pricePerNight: number;
+  rating: number;
+}
+
+export interface AlternativeCityPool {
+  places: AlternativePlace[];
+  hotels: AlternativeHotel[];
+  food: AlternativePlace[];
+  souvenirs: AlternativePlace[];
+}
+
 export interface ItineraryData {
   destination: string;
   totalDays: number;
@@ -189,4 +222,5 @@ export interface ItineraryData {
   days: ItineraryDay[];
   costs: CostItem[];
   tips: TravelTip[];
+  alternative_pool?: Record<string, AlternativeCityPool>;
 }

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
 
 export default function ProfileDropdown({ user, onSignOut }: { user: User; onSignOut: () => void }) {
@@ -54,20 +55,20 @@ export default function ProfileDropdown({ user, onSignOut }: { user: User; onSig
               <div className="text-xs text-emerald-700 truncate">{user.email}</div>
             </div>
           </div>
-          <button
-            className="w-full text-left px-4 py-2 mt-2 text-emerald-400 bg-emerald-50 rounded-lg font-medium cursor-not-allowed opacity-60"
-            disabled
-            aria-disabled="true"
+          <Link
+            href="/profile"
+            onClick={() => setOpen(false)}
+            className="block w-full text-left px-4 py-2 mt-2 text-emerald-700 hover:bg-emerald-50 rounded-lg font-medium"
           >
             Profile
-          </button>
-          <button
-            className="w-full text-left px-4 py-2 text-emerald-400 bg-emerald-50 rounded-lg font-medium cursor-not-allowed opacity-60"
-            disabled
-            aria-disabled="true"
+          </Link>
+          <Link
+            href="/build-trip"
+            onClick={() => setOpen(false)}
+            className="block w-full text-left px-4 py-2 text-emerald-700 hover:bg-emerald-50 rounded-lg font-medium"
           >
-            Settings
-          </button>
+            Plan a Trip
+          </Link>
           <button
             className="w-full text-left px-4 py-2 text-emerald-700 hover:bg-emerald-50 rounded-lg font-medium"
             onClick={() => { setOpen(false); onSignOut(); }}

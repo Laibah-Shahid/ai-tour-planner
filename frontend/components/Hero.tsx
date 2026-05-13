@@ -85,10 +85,13 @@ export default function Hero() {
               <Zap className="w-5 h-5" />
               <span>Plan My Adventure</span>
             </Link>
-            <button className="border-2 border-white/40 text-white px-8 py-4 rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center justify-center space-x-2">
+            <Link
+              href="/#features"
+              className="border-2 border-white/40 text-white px-8 py-4 rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center justify-center space-x-2"
+            >
               <Play className="w-5 h-5" />
-              <span>Watch Demo</span>
-            </button>
+              <span>See How It Works</span>
+            </Link>
           </div>
 
           <div className="flex items-center space-x-8 pt-4">

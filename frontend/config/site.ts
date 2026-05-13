@@ -67,4 +67,5 @@ export const NAV_ITEMS = [
   { id: "destinations", label: "Destinations", href: "/#destinations" },
   { id: "explore", label: "Explore", href: "/explore" },
   { id: "testimonials", label: "Reviews", href: "/#testimonials" },
+  { id: "build-trip", label: "Plan Trip", href: "/build-trip" },
 ];
