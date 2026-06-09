@@ -6,10 +6,12 @@ Key change: reads data from Supabase instead of Excel files.
 from __future__ import annotations
 
 import difflib
+import hashlib
 import json
 import logging
 import threading
 from math import atan2, cos, radians, sin, sqrt
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -29,6 +31,12 @@ from app.services.supabase_data import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Disk cache for precomputed attraction embeddings.
+# Keyed by MD5 of the search_text corpus so stale caches are auto-invalidated.
+_EMBED_CACHE_DIR = Path(__file__).parent.parent / "data"
+_EMBED_CACHE_NPY = _EMBED_CACHE_DIR / "embeddings_cache.npy"
+_EMBED_CACHE_META = _EMBED_CACHE_DIR / "embeddings_cache.meta"
 
 # ---------------------------------------------------------------------------
 # Retrieval & selection constants
@@ -236,6 +244,7 @@ class ItineraryGenerator:
         self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
         self.llm = _get_llm()
         self._load_data()
+        self._graph = self._compile_graph()  # compile once, reuse forever
 
     def _load_data(self) -> None:
         self.df_attractions = get_attractions_df()
@@ -248,11 +257,31 @@ class ItineraryGenerator:
                 lambda r: f"{r.get('_key', '')} {r.get('category', '')} {r.get('Desc', '')} {r.get('district', '')}",
                 axis=1,
             )
-            self.embeddings = self.embedding_model.encode(
-                self.df_attractions["search_text"].tolist(), show_progress_bar=False
+            self.embeddings = self._load_or_compute_embeddings(
+                self.df_attractions["search_text"].tolist()
             )
         else:
             self.embeddings = np.array([])
+
+    def _load_or_compute_embeddings(self, texts: list[str]) -> np.ndarray:
+        """Return embeddings from disk cache when the corpus is unchanged; else recompute."""
+        corpus_hash = hashlib.md5("\n".join(texts).encode()).hexdigest()
+
+        if _EMBED_CACHE_NPY.exists() and _EMBED_CACHE_META.exists():
+            if _EMBED_CACHE_META.read_text().strip() == corpus_hash:
+                logger.info("Loaded attraction embeddings from disk cache (%d vectors).", len(texts))
+                return np.load(_EMBED_CACHE_NPY)
+
+        logger.info("Computing embeddings for %d attractions (will cache to disk)...", len(texts))
+        embeddings = self.embedding_model.encode(texts, show_progress_bar=False)
+        try:
+            _EMBED_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            np.save(_EMBED_CACHE_NPY, embeddings)
+            _EMBED_CACHE_META.write_text(corpus_hash)
+            logger.info("Embeddings cached to %s", _EMBED_CACHE_NPY)
+        except Exception as exc:
+            logger.warning("Could not write embedding cache: %s", exc)
+        return embeddings
 
     def reload_data(self) -> None:
         """Reload data from Supabase (call after data changes)."""
@@ -260,7 +289,7 @@ class ItineraryGenerator:
         clear_cache()
         self._load_data()
 
-    def create_graph(self):
+    def _compile_graph(self):
         wf = StateGraph(ItineraryState)
         wf.add_node("semantic_searcher", self.semantic_search)
         wf.add_node("data_enricher", self.enrich_data)
@@ -272,6 +301,10 @@ class ItineraryGenerator:
         wf.add_edge("select_optional_places", "itinerary_generator")
         wf.add_edge("itinerary_generator", END)
         return wf.compile()
+
+    def create_graph(self):
+        """Return the pre-compiled graph (no recompilation per request)."""
+        return self._graph
 
     # --- Node: Semantic Search ---
     def semantic_search(self, state: ItineraryState) -> ItineraryState:

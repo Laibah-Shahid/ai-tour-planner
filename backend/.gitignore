@@ -9,3 +9,5 @@ dist/
 build/
 .mypy_cache/
 .pytest_cache/
+app/data/embeddings_cache.npy
+app/data/embeddings_cache.meta

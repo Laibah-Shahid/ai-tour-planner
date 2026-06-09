@@ -26,6 +26,15 @@ async def lifespan(app: FastAPI):
     logger.info("Starting PakTour AI API...")
     settings = get_settings()
     logger.info("CORS origins: %s", settings.cors_origins_list)
+
+    # Eagerly initialize the itinerary generator so the first request is not slow.
+    # Runs in a thread executor to avoid blocking the event loop during model load.
+    import asyncio
+    from app.services.itinerary_engine import get_generator
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, get_generator)
+    logger.info("Itinerary generator ready.")
+
     yield
     logger.info("Shutting down PakTour AI API...")
 
