@@ -14,50 +14,59 @@ logger = logging.getLogger(__name__)
 # Cache DataFrames in memory after first load
 _cache: dict[str, pd.DataFrame] = {}
 
-_STORAGE_BUCKET = "places-media"
-
-
-def _get_storage_image_urls(folder_path: str) -> list[str]:
-    """Return public URLs for all images in a storage folder. Safe — returns [] on any error."""
-    fp = str(folder_path).strip() if folder_path else ""
-    if not fp or fp in ("None", "nan"):
-        return []
+def _fetch_attraction_images() -> dict[str, list[str]]:
+    """
+    Fetch all rows from attraction_images and return a dict:
+        { attraction_id (UUID) -> [image_url, ...] }
+    """
     try:
         supabase = get_supabase_admin()
-        files = supabase.storage.from_(_STORAGE_BUCKET).list(fp)
-        urls = []
-        for f in (files or []):
-            name = f.get("name", "")
-            if name and not name.startswith("."):
-                url = supabase.storage.from_(_STORAGE_BUCKET).get_public_url(f"{fp}/{name}")
-                urls.append(url)
-        return urls
+        all_rows: list[dict] = []
+        page_size = 1000
+        offset = 0
+        while True:
+            resp = (
+                supabase.table("attraction_images")
+                .select("attraction_id,image_url")
+                .range(offset, offset + page_size - 1)
+                .execute()
+            )
+            batch = resp.data or []
+            all_rows.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+
+        grouped: dict[str, list[str]] = {}
+        for row in all_rows:
+            aid = row.get("attraction_id", "")
+            url = row.get("image_url", "")
+            if aid and url:
+                grouped.setdefault(aid, []).append(url)
+        logger.info("Loaded %d images for %d attractions from attraction_images.", len(all_rows), len(grouped))
+        return grouped
     except Exception as exc:
-        logger.warning("Storage listing failed for '%s': %s", folder_path, exc)
-        return []
+        logger.warning("Could not fetch attraction_images: %s", exc)
+        return {}
 
 
 def _enrich_with_images(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Add image_url (first image) and image_urls (all images) columns by listing
-    the places-media Storage bucket for each row that has a folder_path set.
-    Rows without folder_path get empty values.
+    Join the attractions DataFrame with the attraction_images table.
+    Adds image_url (first image) and image_urls (all images) columns.
+    Rows with no matching images get empty values.
     """
-    if "folder_path" not in df.columns:
+    if "id" not in df.columns:
         df["image_url"] = ""
         df["image_urls"] = [[] for _ in range(len(df))]
         return df
 
+    images_by_id = _fetch_attraction_images()
     image_url_list: list[str] = []
     image_urls_list: list[list[str]] = []
 
-    rows_with_path = df["folder_path"].notna() & (df["folder_path"] != "")
-    total = int(rows_with_path.sum())
-    if total:
-        logger.info("Fetching Storage images for %d attractions with folder_path…", total)
-
-    for fp in df["folder_path"]:
-        urls = _get_storage_image_urls(fp)
+    for row_id in df["id"]:
+        urls = images_by_id.get(str(row_id), [])
         image_url_list.append(urls[0] if urls else "")
         image_urls_list.append(urls)
 
