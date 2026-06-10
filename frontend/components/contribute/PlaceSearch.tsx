@@ -85,7 +85,7 @@ export default function PlaceSearch({
       {searched && results.length === 0 && query.trim().length >= 2 && (
         <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl text-sm text-amber-800 space-y-3">
           <p>
-            <span className="font-semibold">"{query}"</span> is not in our
+            <span className="font-semibold">&quot;{query}&quot;</span> is not in our
             database yet.
           </p>
           <button
