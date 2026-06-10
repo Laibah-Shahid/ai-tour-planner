@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   CHATBOT_WELCOME_MESSAGE,
-  CHATBOT_FIELD_LABELS,
 } from "@/config/site";
 import { sendChatMessage } from "@/lib/api";
 import type { ChatMessage, GatheredTripDetails } from "@/types";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bookmark, Check, Download, Share2, Copy } from "lucide-react";
+import { Check, Download, Share2, Copy } from "lucide-react";
 import Link from "next/link";
 
 interface ItineraryCTAProps {
@@ -10,7 +10,7 @@ interface ItineraryCTAProps {
   onShare?: () => void;
 }
 
-export default function ItineraryCTA({ itineraryId, shareUrl, onShare }: ItineraryCTAProps) {
+export default function ItineraryCTA({ itineraryId: _itineraryId, shareUrl, onShare }: ItineraryCTAProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopyLink = async () => {

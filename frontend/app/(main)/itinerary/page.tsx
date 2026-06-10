@@ -64,7 +64,7 @@ function ItineraryPageContent() {
   const [data, setData] = useState<ItineraryData | null>(null);
   const [responseData, setResponseData] = useState<ItineraryResponseData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
 
   // Sharing
   const [shareUrl, setShareUrl] = useState<string | null>(null);

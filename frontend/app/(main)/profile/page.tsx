@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -89,9 +90,11 @@ export default function ProfilePage() {
           <div className="flex items-center gap-5">
             <div className="w-20 h-20 rounded-full bg-emerald-600 flex items-center justify-center text-2xl font-bold ring-4 ring-emerald-400/30">
               {user.user_metadata?.avatar_url ? (
-                <img
+                <Image
                   src={user.user_metadata.avatar_url}
                   alt="Profile"
+                  width={80}
+                  height={80}
                   className="w-full h-full rounded-full object-cover"
                 />
               ) : (
