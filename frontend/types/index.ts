@@ -102,7 +102,7 @@ export interface ItineraryPlace {
 
 export interface Souvenir {
   name: string;
-  description: string;
+  description?: string;
   key?: string;        // DB primary key — use with /api/explore/place/{key}
 }
 
