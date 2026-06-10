@@ -21,7 +21,7 @@ export default function ContributeForm({ initialName, onBack }: ContributeFormPr
     longitude: null as number | null,
   });
   const [locationStatus, setLocationStatus] = useState<
-    "idle" | "detecting" | "detected" | "denied"
+    "idle" | "detecting" | "geocoding" | "detected" | "denied"
   >("idle");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
@@ -37,16 +37,32 @@ export default function ContributeForm({ initialName, onBack }: ContributeFormPr
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  function detectLocation() {
+  async function detectLocation() {
     if (!navigator.geolocation) {
       setLocationStatus("denied");
       return;
     }
     setLocationStatus("detecting");
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        set("latitude", pos.coords.latitude);
-        set("longitude", pos.coords.longitude);
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setForm((prev) => ({ ...prev, latitude, longitude }));
+        setLocationStatus("geocoding");
+        try {
+          const res = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            setForm((prev) => ({
+              ...prev,
+              city: prev.city || data.city || data.principalSubdivision || "",
+              area: prev.area || data.locality || "",
+            }));
+          }
+        } catch {
+          // silent — coords are still set, user fills city/area manually
+        }
         setLocationStatus("detected");
       },
       () => setLocationStatus("denied")
@@ -151,25 +167,38 @@ export default function ContributeForm({ initialName, onBack }: ContributeFormPr
           <button
             type="button"
             onClick={detectLocation}
-            disabled={locationStatus === "detecting"}
+            disabled={locationStatus === "detecting" || locationStatus === "geocoding"}
             className="flex items-center gap-2 text-sm text-emerald-700 border border-emerald-200 bg-emerald-50 px-4 py-2 rounded-lg hover:bg-emerald-100 transition-colors disabled:opacity-60"
           >
-            {locationStatus === "detecting" ? (
+            {locationStatus === "detecting" || locationStatus === "geocoding" ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <LocateFixed className="w-4 h-4" />
             )}
-            {locationStatus === "detecting" ? "Detecting…" : "Use my current location"}
+            {locationStatus === "detecting"
+              ? "Detecting…"
+              : locationStatus === "geocoding"
+              ? "Looking up address…"
+              : "Use my current location"}
           </button>
         )}
 
         {locationStatus === "detected" && (
           <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-lg">
-            <MapPin className="w-4 h-4" />
-            Location detected ({form.latitude?.toFixed(4)}, {form.longitude?.toFixed(4)})
+            <MapPin className="w-4 h-4 shrink-0" />
+            <span>
+              Location detected
+              {form.city ? ` · ${form.city}` : ""}
+              <span className="text-emerald-500 ml-1 text-xs">
+                ({form.latitude?.toFixed(4)}, {form.longitude?.toFixed(4)})
+              </span>
+            </span>
             <button
               type="button"
-              onClick={() => { set("latitude", null); set("longitude", null); setLocationStatus("idle"); }}
+              onClick={() => {
+                setForm((prev) => ({ ...prev, latitude: null, longitude: null, city: "", area: "" }));
+                setLocationStatus("idle");
+              }}
               className="ml-auto text-gray-400 hover:text-gray-600"
             >
               <X className="w-3.5 h-3.5" />
@@ -177,7 +206,7 @@ export default function ContributeForm({ initialName, onBack }: ContributeFormPr
           </div>
         )}
 
-        {/* City + Area fallback (always shown; required if no geolocation) */}
+        {/* City + Area — auto-filled from reverse geocode, always editable */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-xs text-gray-500">City <span className="text-red-400">*</span></label>
