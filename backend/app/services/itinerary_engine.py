@@ -132,8 +132,12 @@ def _load_or_fetch_df(name: str, fetcher) -> "pd.DataFrame":
         if age_hours < _DF_CACHE_TTL_HOURS:
             try:
                 df = pd.read_pickle(path)
-                logger.info("Loaded %s DataFrame from disk cache (%d rows).", name, len(df))
-                return df
+                # Invalidate attractions cache if image_url column is absent (schema migration)
+                if name == "attractions" and "image_url" not in df.columns:
+                    logger.info("Attractions cache missing image_url — re-fetching.")
+                else:
+                    logger.info("Loaded %s DataFrame from disk cache (%d rows).", name, len(df))
+                    return df
             except Exception as exc:
                 logger.warning("Could not load df cache '%s': %s", name, exc)
     df = fetcher()
