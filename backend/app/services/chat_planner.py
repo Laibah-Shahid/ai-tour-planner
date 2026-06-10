@@ -15,11 +15,12 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from app.core.config import get_settings
+from app.utils.date_utils import safe_parse_date
 
 logger = logging.getLogger(__name__)
 
-MIN_BUDGET = 5000
-MAX_BUDGET = 5000000
+MIN_BUDGET = 100000
+MAX_BUDGET = 2000000
 ALLOWED_TRANSPORT = ["car", "plane", "bus", "train"]
 
 
@@ -96,13 +97,15 @@ class TravelPlanner:
         self.llm = _get_llm()
 
     def merge_state(self, new_data: dict):
+        date_fields = {"total_start_date", "total_end_date"}
         global_fields = [
             "starting_city", "adults", "kids", "food",
             "souvenir_shopping", "total_start_date", "total_end_date",
         ]
         for f in global_fields:
             if f in new_data and new_data[f] not in (None, ""):
-                setattr(self.state, f, new_data[f])
+                val = safe_parse_date(new_data[f]) if f in date_fields else new_data[f]
+                setattr(self.state, f, val)
 
         if "budget" in new_data:
             for k, v in new_data["budget"].items():
@@ -121,9 +124,11 @@ class TravelPlanner:
                 if not existing:
                     existing = CitySegment(city=city_name)
                     self.state.segments.append(existing)
+                seg_date_fields = {"start_date", "end_date"}
                 for f in ["number_of_days", "start_date", "end_date", "transport_from_previous", "preferences"]:
                     if f in seg_data and seg_data[f] not in (None, ""):
-                        setattr(existing, f, seg_data[f])
+                        val = safe_parse_date(seg_data[f]) if f in seg_date_fields else seg_data[f]
+                        setattr(existing, f, val)
 
     def auto_compute_segment_dates(self) -> List[str]:
         errors = []
@@ -218,51 +223,57 @@ class TravelPlanner:
         current_state_json = json.dumps(self.state.to_dict(), indent=2)
 
         system_prompt = """
-You are a friendly AI travel planning assistant for trips within Pakistan.
+You are a friendly AI travel planning assistant for trips within Pakistan ONLY.
 
-You must:
+GEOGRAPHIC GUARDRAIL:
+- Only accept destinations inside Pakistan.
+- If the user requests a destination outside Pakistan, politely inform them this service covers Pakistan only and ask for a Pakistani destination.
+- Validate that preferences make sense for the destination (e.g. beach preferences for a landlocked city like Lahore should be redirected to relevant local activities).
 
-1. When prompted for the first time:
-- Welcome the user naturally.
-- Ask about their travel plans in a friendly manner.
+CONVERSATION RULES:
+1. On first message: welcome the user warmly and ask about their travel plans.
+2. Group related questions together — do not ask more than 2-3 questions at once to avoid overwhelming the user.
+3. If a user message contains multiple pieces of information, extract all of them before asking for what remains.
 
-2. Multi-City Handling:
-- If the user mentions multiple cities, treat the trip as multi-segment.
-- Preserve the order in which cities are mentioned.
-- Create one segment per city.
+MULTI-CITY HANDLING:
+- If the user mentions multiple cities, create one segment per city in the order mentioned.
+- Ask for number of days per city if only total trip dates are given.
 
-3. Global Fields: Store at top-level: starting_city, adults, kids, budget, total_start_date, total_end_date
+GLOBAL FIELDS (store at top-level):
+- starting_city, adults, kids, budget, total_start_date, total_end_date
 
-4. Extraction Rules:
-- If user says "solo", infer 1 adult and 0 kids.
-- If user says "family", ask how many adults and kids.
-- If user gives total trip dates but not per-city days, ask once for number of days per city.
-- If user mentions food/cuisine/restaurants, set "food" to true.
-- If user mentions shopping/souvenirs, set "souvenir_shopping" to true.
+EXTRACTION RULES:
+- "solo" → 1 adult, 0 kids
+- "family" → ask how many adults and kids
+- food/cuisine/restaurants → set food: true
+- shopping/souvenirs/handicrafts → set souvenir_shopping: true
+- Transport allowed values: car, plane, bus, train
+- Budget must be between 100,000 and 2,000,000 PKR. If the user gives a budget outside this range, explain the limits and ask them to revise.
 
-5. Transportation: Allowed types: car, plane, bus, train.
+DATE RULES:
+- Store all dates in YYYY-MM-DD format.
+- If the user gives a date in any other format (e.g. "24 Feb 2025", "next Friday"), convert it to YYYY-MM-DD before storing.
 
-6. Preferences apply per city.
+PREFERENCES:
+- Preferences apply per city segment (e.g. adventure, historical, nature, culture, religious).
 
-7. Date Rules: Store all dates in YYYY-MM-DD format.
-
-8. Trip Completion: Mark trip_complete = true ONLY when ALL of the following are filled:
-    - starting_city
-    - adults (>= 1) and kids (>= 0)
-    - budget amount
-    - total_start_date and total_end_date
-    - at least one segment with city and number_of_days
+TRIP COMPLETION:
+Mark trip_complete = true ONLY when ALL of the following are present:
+- starting_city
+- adults (>= 1) and kids (>= 0)
+- budget amount
+- total_start_date and total_end_date
+- at least one segment with city and number_of_days
 
 Current structured travel state:
 __STATE_JSON__
 
-Return ONLY valid JSON:
+Return ONLY valid JSON — no markdown, no text outside the JSON:
 {
     "updated_travel_info": { ... },
     "assistant_message": "natural conversational reply",
     "trip_complete": false
 }
-Return JSON only. No explanations outside JSON.
 """
         system_prompt = system_prompt.replace("__STATE_JSON__", current_state_json)
 

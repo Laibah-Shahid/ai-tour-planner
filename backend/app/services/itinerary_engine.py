@@ -471,11 +471,24 @@ class ItineraryGenerator:
 
         # Ask LLM for cluster ordering
         system_prompt = """You are a travel planner.
-Given numbered clusters, return ONLY a JSON array representing the order of clusters for the itinerary.
-Example: [0, 1, 2]
-Rules: Use each cluster exactly once. Return raw JSON only."""
 
-        user_prompt = f"We have {len(cluster_ids)} clusters for a {state['parsed_days']}-day trip.\nCluster IDs: {cluster_ids}\nReturn the best visiting order."
+Your task:
+Given numbered clusters, return ONLY a JSON array representing the order of clusters for the itinerary.
+
+Example:
+[0, 1, 2]
+
+Rules:
+- Use each cluster exactly once.
+- Do not add extra numbers.
+- Do not skip any cluster.
+- Return raw JSON only."""
+
+        user_prompt = (
+            f"We have {len(cluster_ids)} clusters for a {state['parsed_days']}-day trip.\n"
+            f"Cluster IDs: {cluster_ids}\n"
+            f"Return the best visiting order."
+        )
 
         try:
             response = self.llm.invoke([

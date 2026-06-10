@@ -30,7 +30,7 @@ class TripRequest(BaseModel):
     destinations: list[str] = Field(..., min_length=1, description="Destination cities")
     adults: int = Field(..., ge=1, description="Number of adults")
     kids: int = Field(0, ge=0, description="Number of kids")
-    budget: int = Field(..., ge=5000, description="Budget in PKR")
+    budget: int = Field(..., ge=100000, description="Budget in PKR (min 100,000)")
     start_date: date
     end_date: date
     days: int = Field(..., ge=1, description="Number of days")

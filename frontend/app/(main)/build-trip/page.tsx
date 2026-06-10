@@ -392,23 +392,25 @@ function BuildTripPageContent() {
                     <Input
                       id="budget"
                       type="number"
-                      placeholder="e.g., 50000"
+                      placeholder="e.g., 150,000"
                       className={`focus-visible:ring-emerald-500 ${budgetError ? 'border-red-500 ring-red-300' : ''}`}
                       value={formData.budget}
-                      min={5000}
+                      min={100000}
+                      max={2000000}
                       onChange={handleFormChange}
                       onBlur={e => {
-                        const val = e.target.value;
-                        if (val && Number(val) < 5000) {
-                          setFormData(prev => ({ ...prev, budget: "5000" }));
+                        const val = Number(e.target.value);
+                        if (e.target.value && (val < 100000 || val > 2000000)) {
+                          const clamped = String(Math.min(2000000, Math.max(100000, val)));
+                          setFormData(prev => ({ ...prev, budget: clamped }));
                           setBudgetError(true);
                           if (budgetErrorTimeout.current) clearTimeout(budgetErrorTimeout.current);
-                          budgetErrorTimeout.current = setTimeout(() => setBudgetError(false), 2000);
+                          budgetErrorTimeout.current = setTimeout(() => setBudgetError(false), 3000);
                         }
                       }}
                     />
                     {budgetError && (
-                      <div className="text-red-500 text-xs mt-1">Budget must be at least 5000 PKR. Value auto-corrected.</div>
+                      <div className="text-red-500 text-xs mt-1">Budget must be between 100,000 and 2,000,000 PKR. Value auto-corrected.</div>
                     )}
                   </div>
                   <div className="space-y-2">
