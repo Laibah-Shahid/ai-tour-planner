@@ -243,6 +243,50 @@ class DestinationSummary(BaseModel):
     tag: str = ""
 
 
+# ---------- Contribute ----------
+
+PLACE_CATEGORIES = [
+    "Historical / Heritage",
+    "Nature / Scenic",
+    "Adventure",
+    "Religious",
+    "Cultural",
+    "Food & Dining",
+    "Shopping",
+    "Recreational",
+    "Other",
+]
+
+
+class PlaceSearchResult(BaseModel):
+    key: str
+    name: str
+    category: str = ""
+    district: str = ""
+    description: str = ""
+
+
+class ReviewSubmit(BaseModel):
+    place_key: str
+    rating: int = Field(..., ge=1, le=5)
+    comment: str = Field(..., min_length=3, max_length=1000)
+
+
+class ContributionSubmit(BaseModel):
+    name: str = Field(..., min_length=2, max_length=200)
+    category: str
+    description: str = Field(default="", max_length=1000)
+    city: str = Field(..., min_length=2, max_length=100)
+    area: str = Field(default="", max_length=100)
+    latitude: float | None = None
+    longitude: float | None = None
+
+
+class ContributeResponse(BaseModel):
+    id: str
+    message: str
+
+
 # ---------- Profile ----------
 class UserProfile(BaseModel):
     id: str

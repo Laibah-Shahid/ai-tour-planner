@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
-from app.routers import itinerary, chat, disaster, explore, profile
+from app.routers import itinerary, chat, disaster, explore, profile, contribute
 
 
 logging.basicConfig(
@@ -73,6 +73,7 @@ def create_app() -> FastAPI:
     app.include_router(disaster.router)
     app.include_router(explore.router)
     app.include_router(profile.router)
+    app.include_router(contribute.router)
 
     # Health check
     @app.get("/api/health")

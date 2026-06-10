@@ -258,6 +258,62 @@ export async function getProfile(): Promise<{
 }
 
 // ---------------------------------------------------------------------------
+// Contribute
+// ---------------------------------------------------------------------------
+
+export interface PlaceSearchResult {
+  key: string;
+  name: string;
+  category: string;
+  district: string;
+  description: string;
+}
+
+export interface ReviewPayload {
+  place_key: string;
+  rating: number;
+  comment: string;
+}
+
+export interface ContributionPayload {
+  name: string;
+  category: string;
+  description: string;
+  city: string;
+  area: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+export async function searchPlaces(q: string): Promise<PlaceSearchResult[]> {
+  return apiFetch<PlaceSearchResult[]>(
+    `/api/contribute/search?q=${encodeURIComponent(q)}`
+  );
+}
+
+export async function getCategories(): Promise<{ categories: string[] }> {
+  return apiFetch("/api/contribute/categories");
+}
+
+export async function submitReview(
+  payload: ReviewPayload
+): Promise<{ id: string; message: string }> {
+  return apiFetch("/api/contribute/review", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function submitContribution(
+  payload: ContributionPayload
+): Promise<{ id: string; message: string }> {
+  return apiFetch("/api/contribute/place", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Health
 // ---------------------------------------------------------------------------
 
