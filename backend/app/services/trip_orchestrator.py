@@ -175,7 +175,7 @@ def _build_itinerary_data(
         used_food_keys: set[str] = set()
         used_souvenir_keys: set[str] = set()
 
-        for day_key in sorted(raw.keys()):
+        for day_key in sorted(raw.keys(), key=lambda k: int(k.split("_")[1]) if "_" in k else 0):
             day_data = raw[day_key]
             day_counter += 1
 
