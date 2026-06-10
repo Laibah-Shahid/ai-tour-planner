@@ -1,7 +1,6 @@
 "use client";
 
-import Image from "next/image";
-import { ExternalLink, ImageOff, MapPin, Maximize2, BedDouble, Star, X } from "lucide-react";
+import { ExternalLink, MapPin, Maximize2, BedDouble, Star, X } from "lucide-react";
 import { useState } from "react";
 import { AMENITY_CONFIG } from "@/data/amenities";
 import {
@@ -45,17 +44,7 @@ export default function HotelDetailsDrawer({
   setSelectedHotel,
 }: HotelDetailsDrawerProps) {
   const hotel = selectedHotel;
-  const [erroredSlides, setErroredSlides] = useState<Set<number>>(new Set());
-
-  const rawImages = hotel?.images?.length ? hotel.images : hotel?.image ? [hotel.image] : [];
-  const images = rawImages.filter(Boolean);
-  const hasImages = images.length > 0;
-
   const bookingUrl = hotel?.website || hotel?.google_url || "";
-
-  function markSlideError(i: number) {
-    setErroredSlides((prev) => new Set(prev).add(i));
-  }
 
   return (
     <Sheet open={hotel !== null} onOpenChange={(open) => !open && setSelectedHotel(null)}>
@@ -77,45 +66,6 @@ export default function HotelDetailsDrawer({
 
             {/* Scrollable content */}
             <div className="overflow-y-auto flex-1">
-              {/* Photo Gallery */}
-              <div className="relative">
-                <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-0">
-                  {hasImages ? (
-                    images.map((src, i) => (
-                      <div key={i} className="relative flex-shrink-0 w-full h-56 snap-start bg-gray-100">
-                        {erroredSlides.has(i) ? (
-                          <div className="h-full w-full flex flex-col items-center justify-center gap-2">
-                            <ImageOff className="w-8 h-8 text-gray-300" />
-                            <span className="text-xs text-gray-400">Image unavailable</span>
-                          </div>
-                        ) : (
-                          <Image
-                            src={src}
-                            alt={`${hotel.name} photo ${i + 1}`}
-                            fill
-                            sizes="420px"
-                            className="object-cover"
-                            priority={i === 0}
-                            onError={() => markSlideError(i)}
-                          />
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="flex-shrink-0 w-full h-56 bg-gray-100 flex flex-col items-center justify-center gap-2">
-                      <ImageOff className="w-10 h-10 text-gray-300" />
-                      <span className="text-sm text-gray-400">No photos available</span>
-                    </div>
-                  )}
-                </div>
-                {/* Photo count badge */}
-                {hasImages && (
-                  <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
-                    {images.length} {images.length === 1 ? "photo" : "photos"}
-                  </div>
-                )}
-              </div>
-
               <div className="p-5 space-y-5">
                 {/* Hotel Header */}
                 <SheetHeader className="space-y-2 text-left">

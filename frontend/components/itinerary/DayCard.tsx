@@ -16,6 +16,7 @@ import {
   ArrowLeftRight,
 } from "lucide-react";
 import HotelCard from "@/components/itinerary/HotelCard";
+import PlaceDetailsDrawer from "@/components/itinerary/PlaceDetailsDrawer";
 import SwapDrawer, { type SwapCategory } from "@/components/itinerary/SwapDrawer";
 import type {
   Hotel,
@@ -26,22 +27,35 @@ import type {
   AlternativePlace,
 } from "@/types";
 
-function PlaceCard({ place }: { place: ItineraryPlace }) {
+function PlaceCard({ place, onClick }: { place: ItineraryPlace; onClick: () => void }) {
   const [imgError, setImgError] = useState(false);
-  const showImage = Boolean(place.image) && !imgError;
+  const allImages = place.images?.length ? place.images : place.image ? [place.image] : [];
+  const firstImage = allImages.filter(Boolean)[0] ?? "";
+  const showImage = Boolean(firstImage) && !imgError;
+  const hasMultiple = allImages.filter(Boolean).length > 1;
 
   return (
-    <div className="flex gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100">
+    <button
+      onClick={onClick}
+      className="w-full text-left flex gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100 hover:border-emerald-200 hover:shadow-sm transition-all duration-200"
+    >
       <div className="relative w-20 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
         {showImage ? (
-          <Image
-            src={place.image}
-            alt={place.name}
-            fill
-            sizes="80px"
-            className="object-cover"
-            onError={() => setImgError(true)}
-          />
+          <>
+            <Image
+              src={firstImage}
+              alt={place.name}
+              fill
+              sizes="80px"
+              className="object-cover"
+              onError={() => setImgError(true)}
+            />
+            {hasMultiple && (
+              <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded-full leading-none">
+                +{allImages.filter(Boolean).length - 1}
+              </div>
+            )}
+          </>
         ) : (
           <div className="h-full w-full flex flex-col items-center justify-center gap-1">
             <ImageOff className="w-4 h-4 text-gray-300" />
@@ -51,13 +65,13 @@ function PlaceCard({ place }: { place: ItineraryPlace }) {
           </div>
         )}
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <h4 className="font-semibold text-gray-900 text-sm mb-1 truncate">{place.name}</h4>
-        <p className="text-xs text-gray-500 leading-relaxed line-clamp-3">
-          {place.description || "A must-visit destination on your trip."}
+        <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
+          {place.description || "Tap to view details."}
         </p>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -100,6 +114,7 @@ export default function DayCard({
   onSwapItem,
 }: DayCardProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [selectedPlace, setSelectedPlace] = useState<ItineraryPlace | null>(null);
   const [swapCategory, setSwapCategory] = useState<SwapCategory | null>(null);
   const [swapIndex, setSwapIndex] = useState<number | null>(null);
 
@@ -219,7 +234,7 @@ export default function DayCard({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {day.places.map((place, i) => (
                         <div key={i} className="relative group">
-                          <PlaceCard place={place} />
+                          <PlaceCard place={place} onClick={() => setSelectedPlace(place)} />
                           {editing && (
                             <div className="absolute top-2 right-2">
                               <SwapButton onClick={() => openSwap("places", i)} />
@@ -302,6 +317,12 @@ export default function DayCard({
           )}
         </AnimatePresence>
       </div>
+
+      {/* Place Details Drawer */}
+      <PlaceDetailsDrawer
+        place={selectedPlace}
+        onClose={() => setSelectedPlace(null)}
+      />
 
       {/* Swap Drawer */}
       <SwapDrawer

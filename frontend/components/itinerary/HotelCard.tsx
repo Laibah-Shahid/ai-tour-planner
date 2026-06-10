@@ -1,8 +1,6 @@
 "use client";
 
-import Image from "next/image";
-import { ImageOff, Star } from "lucide-react";
-import { useState } from "react";
+import { ExternalLink, Star } from "lucide-react";
 import type { Hotel } from "@/types";
 
 interface HotelCardProps {
@@ -29,50 +27,51 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function HotelCard({ hotel, onClick }: HotelCardProps) {
-  const [imgError, setImgError] = useState(false);
-  const showImage = Boolean(hotel.image) && !imgError;
+  const bookingUrl = hotel.website || hotel.google_url || "";
 
   return (
-    <button
+    <div
       onClick={() => onClick(hotel)}
-      className="w-full text-left bg-gray-50 rounded-xl overflow-hidden border border-gray-100 hover:border-emerald-200 hover:shadow-md transition-all duration-200 group"
+      className="w-full text-left bg-gray-50 rounded-xl border border-gray-100 hover:border-emerald-200 hover:shadow-md transition-all duration-200 cursor-pointer p-4"
     >
-      <div className="relative h-36 w-full overflow-hidden">
-        {showImage ? (
-          <>
-            <Image
-              src={hotel.image}
-              alt={hotel.name}
-              fill
-              sizes="(max-width: 640px) 100vw, 50vw"
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
-              onError={() => setImgError(true)}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-          </>
-        ) : (
-          <div className="h-full w-full bg-gray-100 flex flex-col items-center justify-center gap-1.5">
-            <ImageOff className="w-6 h-6 text-gray-300" />
-            <span className="text-xs text-gray-400">Image unavailable</span>
-          </div>
-        )}
-        <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm rounded-full px-2 py-0.5 text-xs font-semibold text-emerald-700">
-          View Details
-        </div>
+      <div className="flex items-start justify-between gap-2 mb-1.5">
+        <h4 className="font-semibold text-gray-900 text-sm leading-snug">{hotel.name}</h4>
+        <span className="text-xs font-bold text-emerald-600 shrink-0 bg-emerald-50 px-2 py-0.5 rounded-full">
+          ★ {hotel.rating}
+        </span>
       </div>
-      <div className="p-4">
-        <h4 className="font-semibold text-gray-900 text-sm mb-1 truncate">
-          {hotel.name}
-        </h4>
-        <StarRating rating={hotel.rating} />
-        <p className="text-xs text-gray-500 mt-1 mb-2 truncate">
-          {hotel.address}
-        </p>
+
+      <StarRating rating={hotel.rating} />
+
+      {hotel.address && (
+        <p className="text-xs text-gray-400 mt-1.5 truncate">{hotel.address}</p>
+      )}
+
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
         <p className="text-sm font-semibold text-emerald-600">
           PKR {hotel.pricePerNight.toLocaleString()}
           <span className="text-xs font-normal text-gray-400"> / night</span>
         </p>
+        {bookingUrl ? (
+          <a
+            href={bookingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors"
+          >
+            Book
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        ) : (
+          <span
+            onClick={(e) => e.stopPropagation()}
+            className="text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-lg"
+          >
+            View Details
+          </span>
+        )}
       </div>
-    </button>
+    </div>
   );
 }

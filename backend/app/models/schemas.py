@@ -91,6 +91,7 @@ class ItineraryPlace(BaseModel):
     name: str
     key: str = ""            # Supabase PK — fetch details via /api/explore/place/{key}
     image: str = ""
+    images: list[str] = []   # All images from attraction_images table
     description: str = ""
 
 

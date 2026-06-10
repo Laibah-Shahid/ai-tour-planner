@@ -169,12 +169,15 @@ def _build_itinerary_data(
         all_food = _collect_optional(result, "food")
         all_souvenirs = _collect_optional(result, "souvenirs")
 
-        # Build image lookup from all attractions retrieved for this city
+        # Build image lookups from all attractions retrieved for this city
         all_city = result.get("all_city_attractions") or result.get("retrieved_attractions", [])
         images_lookup: dict[str, str] = {
             a.get("_key", ""): str(a.get("image_url", "") or "")
-            for a in all_city
-            if a.get("_key")
+            for a in all_city if a.get("_key")
+        }
+        images_all_lookup: dict[str, list[str]] = {
+            a.get("_key", ""): list(a.get("image_urls", []) or [])
+            for a in all_city if a.get("_key")
         }
 
         # Track what ends up in the final itinerary for this city
@@ -187,13 +190,14 @@ def _build_itinerary_data(
             day_data = raw[day_key]
             day_counter += 1
 
-            # Places: name + key + image (from Storage if available)
+            # Places: name + key + image + images (all from attraction_images table)
             places = []
             for attr_name in day_data.get("attractions", []):
                 places.append({
                     "name": attr_name,
                     "key": attr_name,
                     "image": images_lookup.get(attr_name, ""),
+                    "images": images_all_lookup.get(attr_name, []),
                 })
                 used_place_keys.add(attr_name)
 

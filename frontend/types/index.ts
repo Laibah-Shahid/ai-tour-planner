@@ -83,6 +83,7 @@ export interface Hotel {
 export interface ItineraryPlace {
   name: string;
   image: string;
+  images?: string[];   // All images from attraction_images table
   description: string;
   key?: string;        // DB primary key — use with /api/explore/place/{key}
 }
