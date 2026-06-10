@@ -1,22 +1,15 @@
-import { Facebook, Instagram, Twitter, Phone, Mail } from "lucide-react";
+import { Phone, Mail } from "lucide-react";
+import Link from "next/link";
 import Logo from "@/components/ui/Logo";
-import { CONTACT_PHONE, CONTACT_EMAIL, SOCIAL_LINKS, SITE_NAME } from "@/config/site";
-
-const socialIcons = [
-  { Icon: Facebook, label: "Facebook", href: SOCIAL_LINKS.facebook },
-  { Icon: Instagram, label: "Instagram", href: SOCIAL_LINKS.instagram },
-  { Icon: Twitter, label: "Twitter", href: SOCIAL_LINKS.twitter },
-];
+import { CONTACT_PHONE, CONTACT_EMAIL, SITE_NAME } from "@/config/site";
 
 const footerDestinations = [
-  "Hunza Valley",
-  "Skardu",
-  "Lahore",
-  "Karachi",
-  "Swat Valley",
+  { name: "Hunza Valley", id: "hunza" },
+  { name: "Skardu", id: "skardu" },
+  { name: "Lahore", id: "lahore" },
+  { name: "Karachi", id: "karachi" },
+  { name: "Swat Valley", id: "swat" },
 ];
-
-const footerLinks = ["Help Center", "Privacy Policy", "Terms of Service"];
 
 export default function Footer() {
   return (
@@ -33,16 +26,18 @@ export default function Footer() {
               intelligence. Your perfect journey awaits.
             </p>
             <div className="flex space-x-4">
-              {socialIcons.map(({ Icon, label, href }) => (
-                <a
-                  key={label}
-                  href={href}
-                  aria-label={label}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <Icon className="w-6 h-6" />
-                </a>
-              ))}
+              <Link
+                href="/build-trip"
+                className="text-gray-400 hover:text-emerald-400 transition-colors text-sm"
+              >
+                Plan a Trip
+              </Link>
+              <Link
+                href="/explore"
+                className="text-gray-400 hover:text-emerald-400 transition-colors text-sm"
+              >
+                Explore
+              </Link>
             </div>
           </div>
 
@@ -50,11 +45,11 @@ export default function Footer() {
           <div>
             <h3 className="text-lg font-semibold mb-6">Destinations</h3>
             <ul className="space-y-3 text-gray-400">
-              {footerDestinations.map((place) => (
-                <li key={place}>
-                  <a href="#" className="hover:text-white transition-colors">
-                    {place}
-                  </a>
+              {footerDestinations.map((dest) => (
+                <li key={dest.id}>
+                  <Link href={`/destination/${dest.id}`} className="hover:text-white transition-colors">
+                    {dest.name}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -72,13 +67,16 @@ export default function Footer() {
                 <Mail className="w-4 h-4" />
                 <span>{CONTACT_EMAIL}</span>
               </li>
-              {footerLinks.map((link) => (
-                <li key={link}>
-                  <a href="#" className="hover:text-white transition-colors">
-                    {link}
-                  </a>
-                </li>
-              ))}
+              <li>
+                <Link href="/explore" className="hover:text-white transition-colors">
+                  Explore Destinations
+                </Link>
+              </li>
+              <li>
+                <Link href="/build-trip" className="hover:text-white transition-colors">
+                  Plan Your Trip
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

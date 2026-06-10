@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.pytest_cache/
+app/data/embeddings_cache.npy
+app/data/embeddings_cache.meta
+app/data/df_*.pkl

@@ -1,7 +1,6 @@
 "use client";
 
-import Image from "next/image";
-import { Star, MapPin, BedDouble, Maximize2, X } from "lucide-react";
+import { ExternalLink, MapPin, Maximize2, BedDouble, Star, X } from "lucide-react";
 import { AMENITY_CONFIG } from "@/data/amenities";
 import {
   Sheet,
@@ -44,7 +43,10 @@ export default function HotelDetailsDrawer({
   setSelectedHotel,
 }: HotelDetailsDrawerProps) {
   const hotel = selectedHotel;
-  const images = hotel?.images?.length ? hotel.images : hotel ? [hotel.image] : [];
+  const bookingUrl = hotel?.website || hotel?.google_url || "";
+  const encodedName = hotel ? encodeURIComponent(hotel.name) : "";
+  const bookingComUrl = `https://www.booking.com/search.html?ss=${encodedName}`;
+  const agodaUrl = `https://www.agoda.com/search?searchText=${encodedName}`;
 
   return (
     <Sheet open={hotel !== null} onOpenChange={(open) => !open && setSelectedHotel(null)}>
@@ -66,31 +68,6 @@ export default function HotelDetailsDrawer({
 
             {/* Scrollable content */}
             <div className="overflow-y-auto flex-1">
-              {/* Photo Gallery */}
-              <div className="relative">
-                <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-0">
-                  {images.map((src, i) => (
-                    <div
-                      key={i}
-                      className="relative flex-shrink-0 w-full h-56 snap-start"
-                    >
-                      <Image
-                        src={src}
-                        alt={`${hotel.name} photo ${i + 1}`}
-                        fill
-                        sizes="420px"
-                        className="object-cover"
-                        priority={i === 0}
-                      />
-                    </div>
-                  ))}
-                </div>
-                {/* Photo count badge */}
-                <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
-                  {images.length} photos
-                </div>
-              </div>
-
               <div className="p-5 space-y-5">
                 {/* Hotel Header */}
                 <SheetHeader className="space-y-2 text-left">
@@ -102,14 +79,30 @@ export default function HotelDetailsDrawer({
                       ★ {hotel.rating}
                     </Badge>
                   </div>
-                  <StarRating rating={hotel.rating} size="md" />
+
+                  {/* Lodging type badge */}
+                  {hotel.lodging_type && (
+                    <Badge variant="outline" className="w-fit text-gray-600 border-gray-200 bg-gray-50">
+                      {hotel.lodging_type}
+                    </Badge>
+                  )}
+
+                  <div className="flex items-center gap-3">
+                    <StarRating rating={hotel.rating} size="md" />
+                    {hotel.num_reviews ? (
+                      <span className="text-xs text-gray-400">({hotel.num_reviews.toLocaleString()} reviews)</span>
+                    ) : null}
+                  </div>
+
                   <div className="flex items-center gap-1.5 text-sm text-gray-500">
                     <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                    <span>{hotel.address}</span>
+                    <span>{hotel.address || "Address not available"}</span>
                   </div>
                   <p className="text-base font-bold text-emerald-600">
-                    PKR {hotel.pricePerNight.toLocaleString()}
-                    <span className="text-sm font-normal text-gray-400"> / night</span>
+                    {hotel.pricePerNight > 0
+                      ? <>PKR {hotel.pricePerNight.toLocaleString()}<span className="text-sm font-normal text-gray-400"> / night</span></>
+                      : <span className="text-sm font-normal text-gray-400">Price not available</span>
+                    }
                   </p>
                 </SheetHeader>
 
@@ -188,7 +181,7 @@ export default function HotelDetailsDrawer({
                   </>
                 )}
 
-                {/* User Reviews */}
+                {/* Guest Reviews */}
                 {hotel.reviews && hotel.reviews.length > 0 && (
                   <section>
                     <Separator className="mb-5" />
@@ -242,11 +235,62 @@ export default function HotelDetailsDrawer({
               </div>
             </div>
 
-            {/* Footer — Book Now */}
-            <div className="p-4 border-t border-gray-100 bg-white">
-              <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 text-sm font-semibold rounded-xl">
-                Book Now — PKR {hotel.pricePerNight.toLocaleString()} / night
-              </Button>
+            {/* Footer — Booking links */}
+            <div className="p-4 border-t border-gray-100 bg-white space-y-2">
+              {bookingUrl ? (
+                <a href={bookingUrl} target="_blank" rel="noopener noreferrer" className="block">
+                  <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 text-sm font-semibold rounded-xl gap-2">
+                    <ExternalLink className="w-4 h-4" />
+                    Book Now{hotel.pricePerNight > 0 ? ` — PKR ${hotel.pricePerNight.toLocaleString()} / night` : ""}
+                  </Button>
+                </a>
+              ) : null}
+
+              {/* Permanent booking site links */}
+              <div className="flex gap-2">
+                <a
+                  href={bookingComUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1"
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-blue-700 border-blue-200 hover:bg-blue-50 hover:border-blue-300 text-xs gap-1.5"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Booking.com
+                  </Button>
+                </a>
+                <a
+                  href={agodaUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1"
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-red-700 border-red-200 hover:bg-red-50 hover:border-red-300 text-xs gap-1.5"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Agoda
+                  </Button>
+                </a>
+              </div>
+
+              {hotel.google_url && (
+                <a
+                  href={hotel.google_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-emerald-600 transition-colors"
+                >
+                  <MapPin className="w-3 h-3" />
+                  View on Google Maps
+                </a>
+              )}
             </div>
           </>
         )}
