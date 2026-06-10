@@ -556,9 +556,12 @@ Rules:
                         if isinstance(place, dict) and "_key" in place:
                             allowed_names.add(place["_key"])
 
+        _list_categories = {"attractions", "food", "souvenir_shops", "lodging"}
         for day in final_output.values():
-            for category_name in day:
-                for name in day[category_name]:
+            for category_name, items in day.items():
+                if category_name not in _list_categories or not isinstance(items, list):
+                    continue
+                for name in items:
                     if name not in allowed_names:
                         logger.error("Hallucination detected: %s not in allowed names", name)
                         raise ValueError(f"Hallucination detected: {name}")
