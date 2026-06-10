@@ -10,7 +10,7 @@ interface ItineraryCTAProps {
   onShare?: () => void;
 }
 
-export default function ItineraryCTA({ itineraryId: _itineraryId, shareUrl, onShare }: ItineraryCTAProps) {
+export default function ItineraryCTA({ shareUrl, onShare }: ItineraryCTAProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopyLink = async () => {
