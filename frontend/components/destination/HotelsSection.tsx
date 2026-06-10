@@ -289,7 +289,7 @@ function HotelDrawer({ hotel, onClose }: HotelDrawerProps) {
                       </h3>
                       <div className="grid grid-cols-3 gap-2">
                         {hotel.amenities.map((key) => {
-                          const config = AMENITY_CONFIG[key];
+                          const config = AMENITY_CONFIG[key as keyof typeof AMENITY_CONFIG];
                           if (!config) return null;
                           const Icon = config.icon;
                           return (
