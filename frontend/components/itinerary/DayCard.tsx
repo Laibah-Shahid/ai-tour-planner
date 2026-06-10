@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  Calendar,
   ChevronDown,
   Clock,
   MapPin,
@@ -146,6 +147,14 @@ export default function DayCard({
               <p className="text-sm text-emerald-600 italic mt-0.5">{day.tagline}</p>
             )}
             <div className="flex flex-wrap gap-3 mt-2">
+              {day.date && (
+                <span className="flex items-center gap-1 text-xs text-emerald-700 font-medium">
+                  <Calendar className="w-3 h-3" />
+                  {new Date(day.date + "T00:00:00").toLocaleDateString("en-PK", {
+                    weekday: "short", day: "numeric", month: "short", year: "numeric",
+                  })}
+                </span>
+              )}
               {day.durationHours > 0 && (
                 <span className="flex items-center gap-1 text-xs text-gray-500">
                   <Clock className="w-3 h-3 text-emerald-400" />

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timedelta
 from typing import Any
 
 from app.services.itinerary_engine import get_generator
@@ -35,12 +36,19 @@ def generate_from_form(trip_request: dict) -> dict:
     include_food = trip_request.get("include_food", True)
     include_souvenirs = trip_request.get("include_souvenirs", True)
     budget = trip_request.get("budget", 0)
+    raw_start = str(trip_request.get("start_date", ""))
+
+    try:
+        trip_start_dt = datetime.strptime(raw_start, "%Y-%m-%d") if raw_start else None
+    except ValueError:
+        trip_start_dt = None
 
     if len(destinations) == 1:
         result = _run_segment(
             graph, destinations[0], days,
             spots or ["sightseeing", "culture"],
             include_food, include_souvenirs,
+            start_date=raw_start,
         )
         raw = json.loads(result.get("draft_itinerary", "{}"))
         return _build_itinerary_data(
@@ -50,20 +58,25 @@ def generate_from_form(trip_request: dict) -> dict:
             budget=budget,
         )
 
-    # Multi-city
+    # Multi-city — compute rolling start date per city
     days_per_city = max(1, days // len(destinations))
     remainder = days - (days_per_city * len(destinations))
     all_segments = []
+    city_start_dt = trip_start_dt
 
     for i, dest in enumerate(destinations):
         city_days = days_per_city + (1 if i < remainder else 0)
+        city_start_str = city_start_dt.strftime("%Y-%m-%d") if city_start_dt else ""
         result = _run_segment(
             graph, dest, city_days,
             spots or ["sightseeing", "culture"],
             include_food, include_souvenirs,
+            start_date=city_start_str,
         )
         raw = json.loads(result.get("draft_itinerary", "{}"))
         all_segments.append({"city": dest, "raw": raw, "result": result})
+        if city_start_dt:
+            city_start_dt += timedelta(days=city_days)
 
     return _build_itinerary_data(all_segments, destinations, days, budget)
 
@@ -88,7 +101,8 @@ def generate_from_chat(trip_json: dict) -> dict:
             for p in raw_prefs
         ]
         prefs = [p for p in prefs if p] or ["sightseeing"]
-        result = _run_segment(graph, city, city_days, prefs, global_food, global_souvenirs)
+        result = _run_segment(graph, city, city_days, prefs, global_food, global_souvenirs,
+                              start_date=seg.get("start_date") or "")
         raw = json.loads(result.get("draft_itinerary", "{}"))
         all_segments.append({"city": city, "raw": raw, "result": result})
 
@@ -101,7 +115,8 @@ def generate_from_chat(trip_json: dict) -> dict:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _run_segment(graph, city: str, days: int, prefs: list, food: bool, souvenirs: bool) -> dict:
+def _run_segment(graph, city: str, days: int, prefs: list, food: bool, souvenirs: bool,
+                 start_date: str = "") -> dict:
     """Run the itinerary engine for a single city segment."""
     state = {
         "user_query": f"Plan a {days}-day trip to {city}",
@@ -109,6 +124,7 @@ def _run_segment(graph, city: str, days: int, prefs: list, food: bool, souvenirs
         "parsed_days": days,
         "parsed_preferences": prefs,
         "query_parse_error": None,
+        "start_date": start_date,
         "include_food": food,
         "include_souvenirs": souvenirs,
         "retrieved_attractions": [],
@@ -199,6 +215,7 @@ def _build_itinerary_data(
 
             days_list.append({
                 "id": day_counter,
+                "date": day_data.get("date", ""),
                 "title": f"Day {day_counter} - {city.title()}",
                 "tagline": _generate_tagline(day_data),
                 "image": "",

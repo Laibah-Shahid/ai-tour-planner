@@ -106,6 +106,7 @@ class FoodSpot(BaseModel):
 
 class ItineraryDay(BaseModel):
     id: int
+    date: str = ""
     title: str
     tagline: str = ""
     image: str = ""

@@ -99,6 +99,7 @@ export interface FoodSpot {
 
 export interface ItineraryDay {
   id: number;
+  date?: string;
   title: string;
   tagline: string;
   image: string;

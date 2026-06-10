@@ -16,11 +16,25 @@ _cache: dict[str, pd.DataFrame] = {}
 
 
 def _fetch_table(table_name: str, columns: str = "*") -> list[dict[str, Any]]:
-    """Fetch all rows from a Supabase table."""
+    """Fetch all rows from a Supabase table using paginated 1000-row batches."""
     try:
         supabase = get_supabase_admin()
-        response = supabase.table(table_name).select(columns).execute()
-        return response.data or []
+        all_rows: list[dict[str, Any]] = []
+        page_size = 1000
+        offset = 0
+        while True:
+            response = (
+                supabase.table(table_name)
+                .select(columns)
+                .range(offset, offset + page_size - 1)
+                .execute()
+            )
+            batch = response.data or []
+            all_rows.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+        return all_rows
     except Exception as e:
         logger.error("Failed to fetch table '%s': %s", table_name, e)
         return []

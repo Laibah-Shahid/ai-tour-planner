@@ -10,6 +10,8 @@ import hashlib
 import json
 import logging
 import threading
+import time
+from datetime import datetime, timedelta
 from math import atan2, cos, radians, sin, sqrt
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -32,11 +34,19 @@ from app.services.supabase_data import (
 
 logger = logging.getLogger(__name__)
 
-# Disk cache for precomputed attraction embeddings.
-# Keyed by MD5 of the search_text corpus so stale caches are auto-invalidated.
+# Disk cache paths — all live under app/data/
 _EMBED_CACHE_DIR = Path(__file__).parent.parent / "data"
-_EMBED_CACHE_NPY = _EMBED_CACHE_DIR / "embeddings_cache.npy"
+_EMBED_CACHE_NPY  = _EMBED_CACHE_DIR / "embeddings_cache.npy"
 _EMBED_CACHE_META = _EMBED_CACHE_DIR / "embeddings_cache.meta"
+
+# DataFrame pkl caches — skip Supabase fetches on restart (24-hour TTL)
+_DF_CACHE_TTL_HOURS = 24.0
+_DF_CACHE_PKLS: dict[str, Path] = {
+    "attractions": _EMBED_CACHE_DIR / "df_attractions.pkl",
+    "food":        _EMBED_CACHE_DIR / "df_food.pkl",
+    "souvenirs":   _EMBED_CACHE_DIR / "df_souvenirs.pkl",
+    "lodging":     _EMBED_CACHE_DIR / "df_lodging.pkl",
+}
 
 # ---------------------------------------------------------------------------
 # Retrieval & selection constants
@@ -114,6 +124,29 @@ def compute_centroid(
     return {"lat": lat_sum / count, "lng": lng_sum / count}
 
 
+def _load_or_fetch_df(name: str, fetcher) -> "pd.DataFrame":
+    """Load a DataFrame from disk pkl cache if fresh; otherwise fetch and cache it."""
+    path = _DF_CACHE_PKLS.get(name)
+    if path and path.exists():
+        age_hours = (time.time() - path.stat().st_mtime) / 3600
+        if age_hours < _DF_CACHE_TTL_HOURS:
+            try:
+                df = pd.read_pickle(path)
+                logger.info("Loaded %s DataFrame from disk cache (%d rows).", name, len(df))
+                return df
+            except Exception as exc:
+                logger.warning("Could not load df cache '%s': %s", name, exc)
+    df = fetcher()
+    if not df.empty and path:
+        try:
+            _EMBED_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            df.to_pickle(path)
+            logger.info("Cached %s DataFrame to disk (%d rows).", name, len(df))
+        except Exception as exc:
+            logger.warning("Could not write df cache '%s': %s", name, exc)
+    return df
+
+
 def auto_balance_clusters(
     clusters: Dict[int, List[str]],
     place_coordinates: Dict[str, Dict[str, float]],
@@ -144,6 +177,17 @@ def auto_balance_clusters(
         c1, c2 = pair_to_merge
         clusters[c1].extend(clusters[c2])
         del clusters[c2]
+
+    # Split if fewer clusters than days (city has few geographic groups)
+    while len(clusters) < target_days:
+        largest_id = max(clusters, key=lambda k: len(clusters[k]))
+        largest_list = clusters[largest_id]
+        if len(largest_list) < 2:
+            break  # Can't split a single-attraction cluster
+        mid = len(largest_list) // 2
+        new_id = max(clusters.keys()) + 1
+        clusters[new_id] = largest_list[mid:]
+        clusters[largest_id] = largest_list[:mid]
 
     # Redistribute if uneven
     changed = True
@@ -220,6 +264,7 @@ class ItineraryState(TypedDict):
     parsed_location: Optional[str]
     parsed_preferences: Optional[List[str]]
     query_parse_error: Optional[str]
+    start_date: Optional[str]          # ISO YYYY-MM-DD for segment start
     include_food: bool
     include_souvenirs: bool
     retrieved_attractions: List[Dict[str, Any]]      # top-K used for clustering & itinerary
@@ -247,10 +292,10 @@ class ItineraryGenerator:
         self._graph = self._compile_graph()  # compile once, reuse forever
 
     def _load_data(self) -> None:
-        self.df_attractions = get_attractions_df()
-        self.df_food = get_food_df()
-        self.df_souvenirs = get_shops_df()
-        self.df_lodging = get_lodging_df()
+        self.df_attractions = _load_or_fetch_df("attractions", get_attractions_df)
+        self.df_food        = _load_or_fetch_df("food",        get_food_df)
+        self.df_souvenirs   = _load_or_fetch_df("souvenirs",   get_shops_df)
+        self.df_lodging     = _load_or_fetch_df("lodging",     get_lodging_df)
 
         if not self.df_attractions.empty:
             self.df_attractions["search_text"] = self.df_attractions.apply(
@@ -284,9 +329,15 @@ class ItineraryGenerator:
         return embeddings
 
     def reload_data(self) -> None:
-        """Reload data from Supabase (call after data changes)."""
+        """Reload data from Supabase (call after data changes). Clears all disk caches."""
         from app.services.supabase_data import clear_cache
         clear_cache()
+        for path in list(_DF_CACHE_PKLS.values()) + [_EMBED_CACHE_NPY, _EMBED_CACHE_META]:
+            try:
+                if path.exists():
+                    path.unlink()
+            except Exception:
+                pass
         self._load_data()
 
     def _compile_graph(self):
@@ -441,6 +492,13 @@ Rules: Use each cluster exactly once. Return raw JSON only."""
             for a in state.get("retrieved_attractions", [])
         }
 
+        # Resolve segment start date for per-day date assignment
+        start_str = (state.get("start_date") or "").strip()
+        try:
+            start_dt: datetime | None = datetime.strptime(start_str, "%Y-%m-%d") if start_str else None
+        except ValueError:
+            start_dt = None
+
         final_output = {}
         for day_index, cluster_id in enumerate(cluster_order):
             all_cluster_attractions = clusters.get(cluster_id, [])
@@ -457,7 +515,13 @@ Rules: Use each cluster exactly once. Return raw JSON only."""
             )
             itinerary_attractions = sorted_attractions[:ATTRACTIONS_PER_DAY]
 
+            day_date = (
+                (start_dt + timedelta(days=day_index)).strftime("%Y-%m-%d")
+                if start_dt else ""
+            )
+
             final_output[f"day_{day_index + 1}"] = {
+                "date": day_date,
                 "attractions": itinerary_attractions,
                 "food": [f.get("_key") for f in food[:FOOD_IN_ITINERARY] if f.get("_key")],
                 "souvenir_shops": [s.get("_key") for s in souvenirs[:SOUVENIR_IN_ITINERARY] if s.get("_key")],
