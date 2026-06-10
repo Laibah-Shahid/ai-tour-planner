@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { Star, MapPin, BedDouble, Maximize2, X } from "lucide-react";
+import { ExternalLink, ImageOff, MapPin, Maximize2, BedDouble, Star, X } from "lucide-react";
+import { useState } from "react";
 import { AMENITY_CONFIG } from "@/data/amenities";
 import {
   Sheet,
@@ -44,7 +45,17 @@ export default function HotelDetailsDrawer({
   setSelectedHotel,
 }: HotelDetailsDrawerProps) {
   const hotel = selectedHotel;
-  const images = hotel?.images?.length ? hotel.images : hotel ? [hotel.image] : [];
+  const [erroredSlides, setErroredSlides] = useState<Set<number>>(new Set());
+
+  const rawImages = hotel?.images?.length ? hotel.images : hotel?.image ? [hotel.image] : [];
+  const images = rawImages.filter(Boolean);
+  const hasImages = images.length > 0;
+
+  const bookingUrl = hotel?.website || hotel?.google_url || "";
+
+  function markSlideError(i: number) {
+    setErroredSlides((prev) => new Set(prev).add(i));
+  }
 
   return (
     <Sheet open={hotel !== null} onOpenChange={(open) => !open && setSelectedHotel(null)}>
@@ -69,26 +80,40 @@ export default function HotelDetailsDrawer({
               {/* Photo Gallery */}
               <div className="relative">
                 <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-0">
-                  {images.map((src, i) => (
-                    <div
-                      key={i}
-                      className="relative flex-shrink-0 w-full h-56 snap-start"
-                    >
-                      <Image
-                        src={src}
-                        alt={`${hotel.name} photo ${i + 1}`}
-                        fill
-                        sizes="420px"
-                        className="object-cover"
-                        priority={i === 0}
-                      />
+                  {hasImages ? (
+                    images.map((src, i) => (
+                      <div key={i} className="relative flex-shrink-0 w-full h-56 snap-start bg-gray-100">
+                        {erroredSlides.has(i) ? (
+                          <div className="h-full w-full flex flex-col items-center justify-center gap-2">
+                            <ImageOff className="w-8 h-8 text-gray-300" />
+                            <span className="text-xs text-gray-400">Image unavailable</span>
+                          </div>
+                        ) : (
+                          <Image
+                            src={src}
+                            alt={`${hotel.name} photo ${i + 1}`}
+                            fill
+                            sizes="420px"
+                            className="object-cover"
+                            priority={i === 0}
+                            onError={() => markSlideError(i)}
+                          />
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex-shrink-0 w-full h-56 bg-gray-100 flex flex-col items-center justify-center gap-2">
+                      <ImageOff className="w-10 h-10 text-gray-300" />
+                      <span className="text-sm text-gray-400">No photos available</span>
                     </div>
-                  ))}
+                  )}
                 </div>
                 {/* Photo count badge */}
-                <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
-                  {images.length} photos
-                </div>
+                {hasImages && (
+                  <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+                    {images.length} {images.length === 1 ? "photo" : "photos"}
+                  </div>
+                )}
               </div>
 
               <div className="p-5 space-y-5">
@@ -243,10 +268,30 @@ export default function HotelDetailsDrawer({
             </div>
 
             {/* Footer — Book Now */}
-            <div className="p-4 border-t border-gray-100 bg-white">
-              <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 text-sm font-semibold rounded-xl">
-                Book Now — PKR {hotel.pricePerNight.toLocaleString()} / night
-              </Button>
+            <div className="p-4 border-t border-gray-100 bg-white space-y-2">
+              {bookingUrl ? (
+                <a href={bookingUrl} target="_blank" rel="noopener noreferrer" className="block">
+                  <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 text-sm font-semibold rounded-xl gap-2">
+                    <ExternalLink className="w-4 h-4" />
+                    Book Now — PKR {hotel.pricePerNight.toLocaleString()} / night
+                  </Button>
+                </a>
+              ) : (
+                <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 text-sm font-semibold rounded-xl">
+                  PKR {hotel.pricePerNight.toLocaleString()} / night
+                </Button>
+              )}
+              {hotel.google_url && hotel.website && (
+                <a
+                  href={hotel.google_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-emerald-600 transition-colors"
+                >
+                  <MapPin className="w-3 h-3" />
+                  View on Google Maps
+                </a>
+              )}
             </div>
           </>
         )}

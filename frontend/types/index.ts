@@ -69,6 +69,8 @@ export interface Hotel {
   rating: number;
   address: string;
   pricePerNight: number;
+  google_url?: string;  // Google Maps URL
+  website?: string;     // Hotel's own website
   images?: string[];
   rooms?: HotelRoom[];
   reviews?: HotelReview[];

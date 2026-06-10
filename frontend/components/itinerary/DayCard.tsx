@@ -7,6 +7,7 @@ import {
   Calendar,
   ChevronDown,
   Clock,
+  ImageOff,
   MapPin,
   BedDouble,
   Compass,
@@ -26,14 +27,30 @@ import type {
 } from "@/types";
 
 function PlaceCard({ place }: { place: ItineraryPlace }) {
-  const hasImage = place.image && place.image.length > 0;
+  const [imgError, setImgError] = useState(false);
+  const showImage = Boolean(place.image) && !imgError;
+
   return (
     <div className="flex gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100">
-      {hasImage && (
-        <div className="relative w-20 h-16 rounded-lg overflow-hidden flex-shrink-0">
-          <Image src={place.image} alt={place.name} fill sizes="80px" className="object-cover" />
-        </div>
-      )}
+      <div className="relative w-20 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+        {showImage ? (
+          <Image
+            src={place.image}
+            alt={place.name}
+            fill
+            sizes="80px"
+            className="object-cover"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="h-full w-full flex flex-col items-center justify-center gap-1">
+            <ImageOff className="w-4 h-4 text-gray-300" />
+            <span className="text-[9px] text-gray-400 text-center leading-tight px-1">
+              No image
+            </span>
+          </div>
+        )}
+      </div>
       <div className="min-w-0">
         <h4 className="font-semibold text-gray-900 text-sm mb-1 truncate">{place.name}</h4>
         <p className="text-xs text-gray-500 leading-relaxed line-clamp-3">

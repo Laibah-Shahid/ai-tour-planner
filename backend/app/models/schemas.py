@@ -78,6 +78,8 @@ class Hotel(BaseModel):
     rating: float = 0.0
     address: str = ""
     pricePerNight: int = 0
+    google_url: str = ""     # Google Maps URL for this hotel
+    website: str = ""        # Hotel's own website (for booking)
     images: list[str] = []
     rooms: list[HotelRoom] = []
     reviews: list[HotelReview] = []

@@ -185,7 +185,7 @@ def _build_itinerary_data(
                 places.append({"name": attr_name, "key": attr_name})
                 used_place_keys.add(attr_name)
 
-            # Hotels: name + key + hotel_id + price + rating
+            # Hotels: name + key + hotel_id + price + rating + booking links
             hotels = []
             for lname in day_data.get("lodging", []):
                 info = _find_in_pool(lname, all_lodging)
@@ -196,6 +196,9 @@ def _build_itinerary_data(
                     "place_id": info.get("place_id", info.get("place_id_ref", "")),
                     "pricePerNight": int(info.get("price", 0)),
                     "rating": float(info.get("rating", 0)),
+                    "address": str(info.get("address", info.get("vicinity", ""))),
+                    "google_url": str(info.get("google_url", "") or ""),
+                    "website": str(info.get("website", "") or ""),
                 })
                 used_hotel_keys.add(lname)
 
