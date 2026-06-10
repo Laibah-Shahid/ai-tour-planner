@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional
 from datetime import date, datetime
 from enum import Enum
@@ -30,15 +30,21 @@ class TripRequest(BaseModel):
     destinations: list[str] = Field(..., min_length=1, description="Destination cities")
     adults: int = Field(..., ge=1, description="Number of adults")
     kids: int = Field(0, ge=0, description="Number of kids")
-    budget: int = Field(..., ge=100000, description="Budget in PKR (min 100,000)")
+    budget: int = Field(..., ge=100000, le=2000000, description="Budget in PKR (100,000–2,000,000)")
     start_date: date
     end_date: date
-    days: int = Field(..., ge=1, description="Number of days")
+    days: int = Field(..., ge=1, le=365, description="Number of days (1–365)")
     transport_type: TransportType = TransportType.car
     spots: list[str] = Field(default_factory=list, description="Specific spots to visit")
     notes: str = ""
     include_food: bool = True
     include_souvenirs: bool = True
+
+    @model_validator(mode="after")
+    def end_after_start(self) -> "TripRequest":
+        if self.end_date < self.start_date:
+            raise ValueError("end_date must be on or after start_date")
+        return self
 
 
 # ---------- Chat ----------
@@ -80,6 +86,8 @@ class Hotel(BaseModel):
     pricePerNight: int = 0
     google_url: str = ""     # Google Maps URL for this hotel
     website: str = ""        # Hotel's own website (for booking)
+    lodging_type: str = ""   # Hotel / Guest House / Resort etc.
+    num_reviews: int = 0
     images: list[str] = []
     rooms: list[HotelRoom] = []
     reviews: list[HotelReview] = []
@@ -87,12 +95,22 @@ class Hotel(BaseModel):
 
 
 # ---------- Itinerary ----------
+class PlaceReview(BaseModel):
+    author: str = ""
+    rating: float = 0.0
+    text: str = ""
+
+
 class ItineraryPlace(BaseModel):
     name: str
     key: str = ""            # Supabase PK — fetch details via /api/explore/place/{key}
     image: str = ""
     images: list[str] = []   # All images from attraction_images table
     description: str = ""
+    category: str = ""
+    city: str = ""
+    district: str = ""
+    reviews: list[PlaceReview] = []
 
 
 class Souvenir(BaseModel):

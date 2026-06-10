@@ -74,6 +74,7 @@ function ItineraryPageContent() {
   // Disaster alerts
   const [alerts, setAlerts] = useState<DisasterAlert[]>([]);
   const [checkingAlerts, setCheckingAlerts] = useState(false);
+  const [alertsChecked, setAlertsChecked] = useState(false);
 
   // Editing
   const [editing, setEditing] = useState(false);
@@ -164,6 +165,8 @@ function ItineraryPageContent() {
   const handleCheckDisasters = useCallback(async () => {
     if (!data || checkingAlerts) return;
     setCheckingAlerts(true);
+    setAlertsChecked(false);
+    setAlerts([]);
     try {
       const cities = [
         ...new Set(
@@ -179,6 +182,7 @@ function ItineraryPageContent() {
       console.error("Disaster check failed:", err);
     } finally {
       setCheckingAlerts(false);
+      setAlertsChecked(true);
     }
   }, [data, responseData, checkingAlerts]);
 
@@ -458,6 +462,18 @@ function ItineraryPageContent() {
                 </ul>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* All Clear Banner */}
+      {alertsChecked && alerts.length === 0 && (
+        <div className="max-w-4xl mx-auto px-4 mt-6">
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+            <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
+            <p className="text-sm text-green-700 font-medium">
+              No travel alerts found for your route. Everything looks clear — safe travels!
+            </p>
           </div>
         </div>
       )}

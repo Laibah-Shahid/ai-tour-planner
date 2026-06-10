@@ -1,7 +1,6 @@
 "use client";
 
 import { ExternalLink, MapPin, Maximize2, BedDouble, Star, X } from "lucide-react";
-import { useState } from "react";
 import { AMENITY_CONFIG } from "@/data/amenities";
 import {
   Sheet,
@@ -45,6 +44,9 @@ export default function HotelDetailsDrawer({
 }: HotelDetailsDrawerProps) {
   const hotel = selectedHotel;
   const bookingUrl = hotel?.website || hotel?.google_url || "";
+  const encodedName = hotel ? encodeURIComponent(hotel.name) : "";
+  const bookingComUrl = `https://www.booking.com/search.html?ss=${encodedName}`;
+  const agodaUrl = `https://www.agoda.com/search?searchText=${encodedName}`;
 
   return (
     <Sheet open={hotel !== null} onOpenChange={(open) => !open && setSelectedHotel(null)}>
@@ -77,14 +79,30 @@ export default function HotelDetailsDrawer({
                       ★ {hotel.rating}
                     </Badge>
                   </div>
-                  <StarRating rating={hotel.rating} size="md" />
+
+                  {/* Lodging type badge */}
+                  {hotel.lodging_type && (
+                    <Badge variant="outline" className="w-fit text-gray-600 border-gray-200 bg-gray-50">
+                      {hotel.lodging_type}
+                    </Badge>
+                  )}
+
+                  <div className="flex items-center gap-3">
+                    <StarRating rating={hotel.rating} size="md" />
+                    {hotel.num_reviews ? (
+                      <span className="text-xs text-gray-400">({hotel.num_reviews.toLocaleString()} reviews)</span>
+                    ) : null}
+                  </div>
+
                   <div className="flex items-center gap-1.5 text-sm text-gray-500">
                     <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                    <span>{hotel.address}</span>
+                    <span>{hotel.address || "Address not available"}</span>
                   </div>
                   <p className="text-base font-bold text-emerald-600">
-                    PKR {hotel.pricePerNight.toLocaleString()}
-                    <span className="text-sm font-normal text-gray-400"> / night</span>
+                    {hotel.pricePerNight > 0
+                      ? <>PKR {hotel.pricePerNight.toLocaleString()}<span className="text-sm font-normal text-gray-400"> / night</span></>
+                      : <span className="text-sm font-normal text-gray-400">Price not available</span>
+                    }
                   </p>
                 </SheetHeader>
 
@@ -163,7 +181,7 @@ export default function HotelDetailsDrawer({
                   </>
                 )}
 
-                {/* User Reviews */}
+                {/* Guest Reviews */}
                 {hotel.reviews && hotel.reviews.length > 0 && (
                   <section>
                     <Separator className="mb-5" />
@@ -217,21 +235,52 @@ export default function HotelDetailsDrawer({
               </div>
             </div>
 
-            {/* Footer — Book Now */}
+            {/* Footer — Booking links */}
             <div className="p-4 border-t border-gray-100 bg-white space-y-2">
               {bookingUrl ? (
                 <a href={bookingUrl} target="_blank" rel="noopener noreferrer" className="block">
                   <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 text-sm font-semibold rounded-xl gap-2">
                     <ExternalLink className="w-4 h-4" />
-                    Book Now — PKR {hotel.pricePerNight.toLocaleString()} / night
+                    Book Now{hotel.pricePerNight > 0 ? ` — PKR ${hotel.pricePerNight.toLocaleString()} / night` : ""}
                   </Button>
                 </a>
-              ) : (
-                <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 text-sm font-semibold rounded-xl">
-                  PKR {hotel.pricePerNight.toLocaleString()} / night
-                </Button>
-              )}
-              {hotel.google_url && hotel.website && (
+              ) : null}
+
+              {/* Permanent booking site links */}
+              <div className="flex gap-2">
+                <a
+                  href={bookingComUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1"
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-blue-700 border-blue-200 hover:bg-blue-50 hover:border-blue-300 text-xs gap-1.5"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Booking.com
+                  </Button>
+                </a>
+                <a
+                  href={agodaUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1"
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-red-700 border-red-200 hover:bg-red-50 hover:border-red-300 text-xs gap-1.5"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Agoda
+                  </Button>
+                </a>
+              </div>
+
+              {hotel.google_url && (
                 <a
                   href={hotel.google_url}
                   target="_blank"

@@ -169,7 +169,7 @@ def _build_itinerary_data(
         all_food = _collect_optional(result, "food")
         all_souvenirs = _collect_optional(result, "souvenirs")
 
-        # Build image lookups from all attractions retrieved for this city
+        # Build lookups from all attractions retrieved for this city
         all_city = result.get("all_city_attractions") or result.get("retrieved_attractions", [])
         images_lookup: dict[str, str] = {
             a.get("_key", ""): str(a.get("image_url", "") or "")
@@ -178,6 +178,9 @@ def _build_itinerary_data(
         images_all_lookup: dict[str, list[str]] = {
             a.get("_key", ""): list(a.get("image_urls", []) or [])
             for a in all_city if a.get("_key")
+        }
+        details_lookup: dict[str, dict] = {
+            a.get("_key", ""): a for a in all_city if a.get("_key")
         }
 
         # Track what ends up in the final itinerary for this city
@@ -190,14 +193,30 @@ def _build_itinerary_data(
             day_data = raw[day_key]
             day_counter += 1
 
-            # Places: name + key + image + images (all from attraction_images table)
+            # Places: full detail from attraction row
             places = []
             for attr_name in day_data.get("attractions", []):
+                info = details_lookup.get(attr_name, {})
+                reviews = []
+                for i in range(1, 4):
+                    author = str(info.get(f"review_{i}_author", "") or "")
+                    rating = info.get(f"review_{i}_rating", 0)
+                    text = str(info.get(f"review_{i}_text", "") or "")
+                    if author or text:
+                        try:
+                            reviews.append({"author": author, "rating": float(rating), "text": text})
+                        except (TypeError, ValueError):
+                            reviews.append({"author": author, "rating": 0.0, "text": text})
                 places.append({
                     "name": attr_name,
                     "key": attr_name,
                     "image": images_lookup.get(attr_name, ""),
                     "images": images_all_lookup.get(attr_name, []),
+                    "description": str(info.get("Desc", "") or ""),
+                    "category": str(info.get("category", "") or ""),
+                    "city": str(info.get("city", "") or ""),
+                    "district": str(info.get("district", "") or "").title(),
+                    "reviews": reviews,
                 })
                 used_place_keys.add(attr_name)
 
@@ -210,11 +229,13 @@ def _build_itinerary_data(
                     "key": lname,
                     "hotel_id": info.get("hotel_id", ""),
                     "place_id": info.get("place_id", info.get("place_id_ref", "")),
-                    "pricePerNight": int(info.get("price", 0)),
-                    "rating": float(info.get("rating", 0)),
-                    "address": str(info.get("address", info.get("vicinity", ""))),
+                    "pricePerNight": int(info.get("price", 0) or 0),
+                    "rating": float(info.get("rating", 0) or 0),
+                    "address": str(info.get("address", info.get("vicinity", "")) or ""),
                     "google_url": str(info.get("google_url", "") or ""),
                     "website": str(info.get("website", "") or ""),
+                    "lodging_type": str(info.get("lodging_type", "") or ""),
+                    "num_reviews": int(info.get("num_reviews", 0) or 0),
                 })
                 used_hotel_keys.add(lname)
 

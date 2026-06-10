@@ -290,7 +290,7 @@ class ItineraryGenerator:
     """Thread-safe itinerary generator. Loads data once, reuses across requests."""
 
     def __init__(self) -> None:
-        self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+        self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2", local_files_only=True)
         self.llm = _get_llm()
         self._load_data()
         self._graph = self._compile_graph()  # compile once, reuse forever

@@ -71,6 +71,8 @@ export interface Hotel {
   pricePerNight: number;
   google_url?: string;  // Google Maps URL
   website?: string;     // Hotel's own website
+  lodging_type?: string; // Hotel / Guest House / Resort etc.
+  num_reviews?: number;
   images?: string[];
   rooms?: HotelRoom[];
   reviews?: HotelReview[];
@@ -80,11 +82,21 @@ export interface Hotel {
   place_id?: string;
 }
 
+export interface PlaceReview {
+  author: string;
+  rating: number;
+  text: string;
+}
+
 export interface ItineraryPlace {
   name: string;
   image: string;
   images?: string[];   // All images from attraction_images table
   description: string;
+  category?: string;
+  city?: string;
+  district?: string;
+  reviews?: PlaceReview[];
   key?: string;        // DB primary key — use with /api/explore/place/{key}
 }
 

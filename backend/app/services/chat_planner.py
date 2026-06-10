@@ -1,6 +1,15 @@
 """
-Chat-based travel planner — adapted from multi_city_val.py.
+Chat-based travel planner.
 Manages per-session state for conversational trip planning.
+
+Guard rails applied (from validation_layer.py):
+- segment_index-based identity (fixes duplicate city bug)
+- Budget range 100K–2M PKR
+- Days per segment: 1–365
+- Transport: car / plane / bus / train
+- Date consistency: end >= start, allocated <= trip duration, ≤1 unplanned day
+- Conversation history capped at 8 turns to prevent context bloat
+- trip_complete only set when is_ready_to_finalize() passes all validators
 """
 
 from __future__ import annotations
@@ -22,6 +31,7 @@ logger = logging.getLogger(__name__)
 MIN_BUDGET = 100000
 MAX_BUDGET = 2000000
 ALLOWED_TRANSPORT = ["car", "plane", "bus", "train"]
+MAX_HISTORY_TURNS = 8
 
 
 def _get_llm() -> ChatOpenAI:
@@ -35,12 +45,13 @@ def _get_llm() -> ChatOpenAI:
 
 
 # ===============================
-# Data Classes (minimal changes from original)
+# Data Classes
 # ===============================
 
 @dataclass
 class CitySegment:
     city: str
+    segment_index: int = 0          # 0-based — the canonical identity key (not city name)
     number_of_days: Optional[int] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
@@ -49,6 +60,7 @@ class CitySegment:
 
     def to_dict(self):
         return {
+            "segment_index": self.segment_index,
             "city": self.city,
             "number_of_days": self.number_of_days,
             "start_date": self.start_date,
@@ -87,7 +99,7 @@ class TravelState:
 
 
 # ===============================
-# Travel Planner (adapted from original)
+# Travel Planner
 # ===============================
 
 class TravelPlanner:
@@ -112,23 +124,55 @@ class TravelPlanner:
                 if v not in (None, ""):
                     self.state.budget[k] = v
 
+        # ---------------------------------------------------------------
+        # Segments — reconcile by segment_index, NOT by city name.
+        # This allows the same city to appear multiple times as separate
+        # segments (e.g. Lahore → Islamabad → Lahore = indices 0, 1, 2).
+        # ---------------------------------------------------------------
         if "segments" in new_data:
-            for seg_data in new_data["segments"]:
-                city_name = seg_data.get("city")
+            new_segs = new_data["segments"]
+
+            # If LLM forgot segment_index, assign by position
+            for pos, sd in enumerate(new_segs):
+                if sd.get("segment_index") is None:
+                    sd["segment_index"] = pos
+
+            incoming_indices = {int(sd["segment_index"]) for sd in new_segs}
+
+            # Drop segments intentionally removed by the LLM
+            self.state.segments = [
+                seg for seg in self.state.segments
+                if seg.segment_index in incoming_indices
+            ]
+
+            existing_by_index: Dict[int, CitySegment] = {
+                seg.segment_index: seg for seg in self.state.segments
+            }
+
+            rebuilt: List[CitySegment] = []
+            seg_date_fields = {"start_date", "end_date"}
+            for sd in new_segs:
+                idx = int(sd["segment_index"])
+                city_name = (sd.get("city") or "").strip()
                 if not city_name:
                     continue
-                existing = next(
-                    (s for s in self.state.segments if s.city.lower() == city_name.lower()),
-                    None,
-                )
-                if not existing:
-                    existing = CitySegment(city=city_name)
-                    self.state.segments.append(existing)
-                seg_date_fields = {"start_date", "end_date"}
-                for f in ["number_of_days", "start_date", "end_date", "transport_from_previous", "preferences"]:
-                    if f in seg_data and seg_data[f] not in (None, ""):
-                        val = safe_parse_date(seg_data[f]) if f in seg_date_fields else seg_data[f]
-                        setattr(existing, f, val)
+
+                seg = existing_by_index.get(idx)
+                if seg is None:
+                    seg = CitySegment(city=city_name, segment_index=idx)
+                else:
+                    seg.city = city_name  # allow in-place city rename
+
+                for f in ["number_of_days", "start_date", "end_date",
+                          "transport_from_previous", "preferences"]:
+                    val = sd.get(f)
+                    if val not in (None, ""):
+                        val = safe_parse_date(val) if f in seg_date_fields else val
+                        setattr(seg, f, val)
+
+                rebuilt.append(seg)
+
+            self.state.segments = sorted(rebuilt, key=lambda s: s.segment_index)
 
     def auto_compute_segment_dates(self) -> List[str]:
         errors = []
@@ -146,6 +190,10 @@ class TravelPlanner:
             current_date += timedelta(days=seg.number_of_days)
         return errors
 
+    # ------------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------------
+
     def validate_global_fields(self) -> List[str]:
         errors = []
         s = self.state
@@ -162,7 +210,9 @@ class TravelPlanner:
         if not s.budget.get("amount"):
             errors.append("Budget amount is required.")
         elif not (MIN_BUDGET <= s.budget["amount"] <= MAX_BUDGET):
-            errors.append(f"Budget must be between {MIN_BUDGET} and {MAX_BUDGET} PKR.")
+            errors.append(
+                f"Budget must be between {MIN_BUDGET:,} and {MAX_BUDGET:,} PKR."
+            )
         if not s.total_start_date:
             errors.append("Trip start date is required.")
         if not s.total_end_date:
@@ -175,12 +225,22 @@ class TravelPlanner:
             errors.append("At least one destination city is required.")
             return errors
         for idx, seg in enumerate(self.state.segments):
+            label = f"Stop {idx + 1} ({seg.city})" if seg.city else f"Stop {idx + 1}"
             if not seg.city:
-                errors.append(f"Segment {idx+1}: City name missing.")
+                errors.append(f"Stop {idx + 1}: City name is missing.")
             if seg.number_of_days is not None and seg.number_of_days <= 0:
-                errors.append(f"{seg.city}: Number of days must be positive.")
-            if seg.transport_from_previous and seg.transport_from_previous.lower() not in ALLOWED_TRANSPORT:
-                errors.append(f"{seg.city}: Transport must be one of {', '.join(ALLOWED_TRANSPORT)}.")
+                errors.append(f"{label}: Number of days must be positive.")
+            if seg.number_of_days is not None and seg.number_of_days > 365:
+                errors.append(f"{label}: Stay cannot exceed 365 days.")
+            if seg.transport_from_previous:
+                if seg.transport_from_previous.lower() not in ALLOWED_TRANSPORT:
+                    errors.append(
+                        f"{label}: Transport must be one of {', '.join(ALLOWED_TRANSPORT)}."
+                    )
+            if not seg.preferences:
+                errors.append(
+                    f"{label}: Preferences are required — please say what you'd like to do there."
+                )
         return errors
 
     def validate_total_day_consistency(self) -> List[str]:
@@ -199,14 +259,13 @@ class TravelPlanner:
         allocated = sum(seg.number_of_days for seg in s.segments if seg.number_of_days)
         if allocated:
             if allocated > total_trip_days:
-                errors.append(f"Total allocated city days ({allocated}) exceed trip duration ({total_trip_days}).")
-        return errors
-
-    def validate_business_rules(self) -> List[str]:
-        errors = []
-        for seg in self.state.segments:
-            if seg.number_of_days and seg.number_of_days > 365:
-                errors.append(f"{seg.city}: Stay cannot exceed 365 days.")
+                errors.append(
+                    f"Total allocated days ({allocated}) exceed trip duration ({total_trip_days} days)."
+                )
+            elif total_trip_days - allocated > 1:
+                errors.append(
+                    f"There are {total_trip_days - allocated} unplanned days. Please allocate them to a city."
+                )
         return errors
 
     def validate(self) -> List[str]:
@@ -215,75 +274,145 @@ class TravelPlanner:
         errors.extend(self.validate_segments_structure())
         errors.extend(self.auto_compute_segment_dates())
         errors.extend(self.validate_total_day_consistency())
-        errors.extend(self.validate_business_rules())
         return errors
+
+    def is_ready_to_finalize(self) -> bool:
+        """True only when all validators pass and every segment has preferences."""
+        if self.validate():
+            return False
+        for seg in self.state.segments:
+            if not seg.preferences:
+                return False
+        return True
+
+    # ------------------------------------------------------------------
+    # LLM interaction
+    # ------------------------------------------------------------------
+
+    def _build_messages(self, system_prompt: str, user_input: str):
+        msgs = [SystemMessage(content=system_prompt)]
+        # Cap history to avoid context bloat
+        for turn in self.messages[-MAX_HISTORY_TURNS * 2:]:
+            if turn["role"] == "user":
+                msgs.append(HumanMessage(content=turn["content"]))
+            else:
+                msgs.append(AIMessage(content=turn["content"]))
+        msgs.append(HumanMessage(content=user_input))
+        return msgs
 
     def process_input(self, user_input: str) -> Tuple[str, bool, dict | None]:
         """Process user input and return (reply, is_complete, extracted_details)."""
         current_state_json = json.dumps(self.state.to_dict(), indent=2)
+        current_errors = self.validate()
+        validation_context = (
+            "\n".join(f"- {e}" for e in current_errors)
+            if current_errors else "None"
+        )
 
-        system_prompt = """
-You are a friendly AI travel planning assistant for trips within Pakistan ONLY.
+        system_prompt = f"""
+You are a friendly AI travel planning assistant for inter-city trips within Pakistan ONLY.
 
-GEOGRAPHIC GUARDRAIL:
-- Only accept destinations inside Pakistan.
-- If the user requests a destination outside Pakistan, politely inform them this service covers Pakistan only and ask for a Pakistani destination.
-- Validate that preferences make sense for the destination (e.g. beach preferences for a landlocked city like Lahore should be redirected to relevant local activities).
+=== CURRENT TRAVEL STATE ===
+{current_state_json}
 
-CONVERSATION RULES:
-1. On first message: welcome the user warmly and ask about their travel plans.
-2. Group related questions together — do not ask more than 2-3 questions at once to avoid overwhelming the user.
-3. If a user message contains multiple pieces of information, extract all of them before asking for what remains.
+=== CURRENT VALIDATION ISSUES (detected by the system) ===
+{validation_context}
 
-MULTI-CITY HANDLING:
-- If the user mentions multiple cities, create one segment per city in the order mentioned.
-- Ask for number of days per city if only total trip dates are given.
+=== YOUR RESPONSIBILITIES ===
 
-GLOBAL FIELDS (store at top-level):
-- starting_city, adults, kids, budget, total_start_date, total_end_date
+1. FIRST MESSAGE: Welcome the user and ask about their travel plans.
+   You handle inter-city travel only — not activities within a single city.
 
-EXTRACTION RULES:
-- "solo" → 1 adult, 0 kids
-- "family" → ask how many adults and kids
-- food/cuisine/restaurants → set food: true
-- shopping/souvenirs/handicrafts → set souvenir_shopping: true
-- Transport allowed values: car, plane, bus, train
-- Budget must be between 100,000 and 2,000,000 PKR. If the user gives a budget outside this range, explain the limits and ask them to revise.
+2. DUPLICATE CITY NAMES — CRITICAL RULE:
+   A user can visit the same city more than once (e.g. Lahore → Islamabad → Lahore).
+   Each visit is a SEPARATE segment with its own unique segment_index.
+   NEVER merge two visits to the same city into one segment.
+   Example route: Karachi → Lahore → Islamabad → Lahore
+     segment_index 0: Lahore    (first visit)
+     segment_index 1: Islamabad
+     segment_index 2: Lahore    (second visit — different index, same city name)
+   The segment_index is the ONLY unique identity. City name alone is NOT unique.
 
-DATE RULES:
-- Store all dates in YYYY-MM-DD format.
-- If the user gives a date in any other format (e.g. "24 Feb 2025", "next Friday"), convert it to YYYY-MM-DD before storing.
+3. SEGMENT HANDLING:
+   - Preserve the order cities are mentioned.
+   - When removing a city, drop it and tell the user how many days are unallocated.
+   - If a user gives a vague region (e.g. "Balochistan"), ask for the specific city.
+     Replace the vague entry at its existing segment_index — do NOT add a new one.
+   - Return the FULL segments list every single time (even unchanged ones).
+   - Indices must stay stable after additions/removals.
+   - After a removal, compact indices so they start from 0 with no gaps.
 
-PREFERENCES:
-- Preferences apply per city segment (e.g. adventure, historical, nature, culture, religious).
+4. GLOBAL FIELDS: starting_city, adults, kids, budget, total_start_date, total_end_date
+   - "solo" → 1 adult, 0 kids
+   - "family" → ask how many adults and kids
+   - food/dining/restaurant → food: true
+   - shopping/souvenirs → souvenir_shopping: true
+   - Budget must be between 100,000 and 2,000,000 PKR. If outside range, explain and ask to revise.
 
-TRIP COMPLETION:
-Mark trip_complete = true ONLY when ALL of the following are present:
-- starting_city
-- adults (>= 1) and kids (>= 0)
-- budget amount
-- total_start_date and total_end_date
-- at least one segment with city and number_of_days
+5. PREFERENCES (MANDATORY):
+   Every segment must have a non-empty preferences list before trip_complete = true.
+   General preferences (e.g. "adventurous trip") → apply to ALL segments.
+   Geographically inappropriate preferences → flag politely and suggest alternatives.
 
-Current structured travel state:
-__STATE_JSON__
+6. TRANSPORT: car, plane, bus, train
+   Suggest car/bus if plane is chosen for a city without an airport.
+   transport_from_previous applies to every segment except the first.
 
-Return ONLY valid JSON — no markdown, no text outside the JSON:
-{
-    "updated_travel_info": { ... },
+7. DATE RULES:
+   Store dates as YYYY-MM-DD. Convert any format the user gives (e.g. "24 Feb 2025").
+   Do NOT compute or invent segment-level start/end dates — the system does this.
+   Flag ambiguous dates conversationally.
+
+8. CONVERSATION QUALITY:
+   - Never re-ask for information already in the current state.
+   - Group all missing questions in one message (max 2-3 questions at a time).
+   - Address CURRENT VALIDATION ISSUES conversationally — not as raw error strings.
+
+9. GEOGRAPHIC GUARDRAIL:
+   Only accept destinations inside Pakistan. If the user requests somewhere outside
+   Pakistan, politely explain this service covers Pakistan only.
+
+10. TRIP COMPLETION:
+    trip_complete = true ONLY when ALL of the following are present:
+    - starting_city, adults (≥1), kids (≥0), budget amount
+    - total_start_date and total_end_date
+    - at least one segment with city, number_of_days, and non-empty preferences
+    - every segment (except the first) has transport_from_previous
+
+11. OUTPUT FORMAT — return ONLY valid JSON, nothing else:
+{{
+    "updated_travel_info": {{
+        "starting_city": null,
+        "adults": null,
+        "kids": null,
+        "food": null,
+        "souvenir_shopping": null,
+        "budget": {{"amount": null, "currency": null}},
+        "total_start_date": null,
+        "total_end_date": null,
+        "segments": [
+            {{
+                "segment_index": 0,
+                "city": null,
+                "number_of_days": null,
+                "start_date": null,
+                "end_date": null,
+                "transport_from_previous": null,
+                "preferences": []
+            }}
+        ]
+    }},
     "assistant_message": "natural conversational reply",
     "trip_complete": false
-}
-"""
-        system_prompt = system_prompt.replace("__STATE_JSON__", current_state_json)
+}}
 
-        messages = [SystemMessage(content=system_prompt)]
-        for m in self.messages:
-            if m["role"] == "user":
-                messages.append(HumanMessage(content=m["content"]))
-            else:
-                messages.append(AIMessage(content=m["content"]))
-        messages.append(HumanMessage(content=user_input))
+RULES:
+- segment_index is MANDATORY on every segment object. Never omit it.
+- Return the complete segments list every time.
+- No markdown, no text outside the JSON object.
+"""
+
+        messages = self._build_messages(system_prompt, user_input)
 
         try:
             response = self.llm.invoke(messages)
@@ -291,9 +420,13 @@ Return ONLY valid JSON — no markdown, no text outside the JSON:
             if not raw:
                 return "Temporary system issue. Please try again.", False, None
 
-            # Strip markdown fences if present
+            # Strip markdown fences if the model wraps the response
             if raw.startswith("```"):
-                raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+                parts = raw.split("```")
+                raw = parts[1] if len(parts) > 1 else parts[0]
+                if raw.startswith("json"):
+                    raw = raw[4:]
+                raw = raw.strip()
 
             result = json.loads(raw)
         except json.JSONDecodeError:
@@ -302,7 +435,11 @@ Return ONLY valid JSON — no markdown, no text outside the JSON:
                 retry = self.llm.invoke(messages)
                 raw = retry.content.strip()
                 if raw.startswith("```"):
-                    raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+                    parts = raw.split("```")
+                    raw = parts[1] if len(parts) > 1 else parts[0]
+                    if raw.startswith("json"):
+                        raw = raw[4:]
+                    raw = raw.strip()
                 result = json.loads(raw)
             except (json.JSONDecodeError, Exception):
                 return "I'm having trouble formatting the response. Please try again.", False, None
@@ -314,12 +451,12 @@ Return ONLY valid JSON — no markdown, no text outside the JSON:
         self.messages.append({"role": "user", "content": user_input})
         self.messages.append({"role": "assistant", "content": result.get("assistant_message", "")})
 
-        is_complete = result.get("trip_complete", False)
-        errors = self.validate() if is_complete else []
+        # Use is_ready_to_finalize() — do NOT blindly trust the LLM's trip_complete flag
+        llm_says_complete = result.get("trip_complete", False)
+        actually_complete = llm_says_complete and self.is_ready_to_finalize()
+        extracted = self.state.to_dict() if actually_complete else None
 
-        extracted = self.state.to_dict() if is_complete and not errors else None
-
-        return result.get("assistant_message", ""), is_complete and not errors, extracted
+        return result.get("assistant_message", ""), actually_complete, extracted
 
     def get_state_dict(self) -> dict:
         return self.state.to_dict()
@@ -329,7 +466,7 @@ Return ONLY valid JSON — no markdown, no text outside the JSON:
 
 
 # ---------------------------------------------------------------------------
-# Session store — in-memory for now, keyed by session_id
+# Session store — in-memory, keyed by session_id
 # ---------------------------------------------------------------------------
 
 _sessions: dict[str, TravelPlanner] = {}
